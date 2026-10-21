@@ -46,12 +46,18 @@ jobs:
         run: |
           jq -rs '
             def esc: gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
-            (map(select(.type == "testStart"))
-              | map({key: (.test.id | tostring), value: .test.name})
-              | from_entries) as $names
-            | map(select(.type == "error"))[]
-            | "::error title=\($names[.testID | tostring] // "test"
-                | gsub("[,:]"; " ") | esc)::\(.error[0:2000] | esc)"
+            . as $events
+            | ($events | map(select(.type == "testStart"))
+                | map({key: (.test.id | tostring), value: .test.name})
+                | from_entries) as $names
+            | $events[]
+            | select(.type == "testDone" and .result != "success" and (.hidden | not))
+            | .testID as $id
+            | ([$events[]
+                | select((.type == "print" or .type == "error") and .testID == $id)
+                | (.message // .error)] | join("\n")) as $details
+            | "::error title=\($names[$id | tostring] // "test"
+                | gsub("[,:]"; " ") | esc)::\($details[0:6000] | esc)"
           ' test-results.json
 
   ios:
