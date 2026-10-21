@@ -35,7 +35,24 @@ jobs:
         run: flutter analyze
 
       - name: Test (random order)
-        run: flutter test --test-randomize-ordering-seed random
+        run: >-
+          flutter test --test-randomize-ordering-seed random
+          --file-reporter json:test-results.json
+
+      # Step logs need a GitHub login; annotations are public, so each
+      # failing test is reported as one with its name and error.
+      - name: Annotate failing tests
+        if: failure()
+        run: |
+          jq -rs '
+            def esc: gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
+            (map(select(.type == "testStart"))
+              | map({key: (.test.id | tostring), value: .test.name})
+              | from_entries) as $names
+            | map(select(.type == "error"))[]
+            | "::error title=\($names[.testID | tostring] // "test"
+                | gsub("[,:]"; " ") | esc)::\(.error[0:2000] | esc)"
+          ' test-results.json
 
   ios:
     name: Build iOS (simulator)
