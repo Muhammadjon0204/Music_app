@@ -100,6 +100,20 @@ void main() {
       expect(find.byIcon(CupertinoIcons.chevron_right), findsNothing);
     });
 
+    testWidgets('a short action label still has a 44pt hit area', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        auraTestScreen(
+          AuraSectionHeader(title: 'S', actionLabel: 'Все', onAction: () {}),
+        ),
+      );
+
+      final size = tester.getSize(find.byType(AuraPressable));
+      expect(size.width, greaterThanOrEqualTo(AuraSizes.minTouchTarget));
+      expect(size.height, greaterThanOrEqualTo(AuraSizes.minTouchTarget));
+    });
+
     testWidgets('shows and triggers the action when provided', (tester) async {
       var taps = 0;
       await tester.pumpWidget(

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app/presentation/dev/design_system_gallery_screen.dart';
@@ -7,6 +8,17 @@ import 'package:music_app/presentation/library/library_screen.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/search/search_screen.dart';
 import 'package:music_app/presentation/shell/app_shell.dart';
+
+/// go_router 18 only recognises `MaterialApp` from the separate
+/// `material_ui` package; with Flutter's own MaterialApp it falls back to
+/// pages without any transition or iOS swipe-back. Building pages
+/// explicitly applies the app's page transitions theme.
+Page<void> _page(GoRouterState state, Widget child) => MaterialPage<void>(
+  key: state.pageKey,
+  name: state.name ?? state.path,
+  restorationId: state.pageKey.value,
+  child: child,
+);
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -22,12 +34,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                builder: (_, _) => const HomeScreen(),
+                pageBuilder: (_, state) => _page(state, const HomeScreen()),
                 routes: [
                   if (kDebugMode)
                     GoRoute(
                       path: 'dev-gallery',
-                      builder: (_, _) => const DesignSystemGalleryScreen(),
+                      pageBuilder: (_, state) =>
+                          _page(state, const DesignSystemGalleryScreen()),
                     ),
                 ],
               ),
@@ -37,8 +50,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.search,
-                builder: (_, state) => SearchScreen(
-                  focusRequest: state.uri.queryParameters['focus'],
+                pageBuilder: (_, state) => _page(
+                  state,
+                  SearchScreen(
+                    focusRequest: state.uri.queryParameters['focus'],
+                  ),
                 ),
               ),
             ],
@@ -47,7 +63,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.library,
-                builder: (_, _) => const LibraryScreen(),
+                pageBuilder: (_, state) => _page(state, const LibraryScreen()),
               ),
             ],
           ),

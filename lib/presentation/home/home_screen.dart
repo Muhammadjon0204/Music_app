@@ -201,7 +201,11 @@ class _DemoBadge extends StatelessWidget {
       child: Semantics(
         label: '${AuraStrings.demoBadge}. ${AuraStrings.demoBadgeHint}',
         child: ExcludeSemantics(
-          child: Row(
+          // Wraps onto two lines at large text sizes instead of overflowing.
+          child: Wrap(
+            spacing: AuraSpacing.sm,
+            runSpacing: AuraSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -220,10 +224,7 @@ class _DemoBadge extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: AuraSpacing.sm),
-              Expanded(
-                child: Text(AuraStrings.demoBadgeHint, style: text.caption),
-              ),
+              Text(AuraStrings.demoBadgeHint, style: text.caption),
             ],
           ),
         ),

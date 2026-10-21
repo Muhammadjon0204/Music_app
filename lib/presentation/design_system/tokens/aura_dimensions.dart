@@ -52,6 +52,7 @@ abstract final class AuraSizes {
   static const double artworkCard = 128;
 
   static const double listTileMinHeight = 64;
+  static const double listTileTrailingMaxWidth = 96;
   static const double stateIcon = 64;
 
   static const double playButtonLarge = 72;

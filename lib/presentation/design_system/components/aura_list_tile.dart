@@ -79,7 +79,18 @@ class AuraListTile extends StatelessWidget {
             ),
             if (trailing != null) ...[
               const SizedBox(width: AuraSpacing.md),
-              trailing,
+              // Capped and scaled down at large text sizes so the title
+              // always keeps room.
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AuraSizes.listTileTrailingMaxWidth,
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: trailing,
+                ),
+              ),
             ],
           ],
         ),

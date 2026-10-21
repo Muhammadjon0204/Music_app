@@ -90,6 +90,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 // Tapping outside the field hides the keyboard.
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
+                  // A convenience for touch only; VoiceOver users dismiss the
+                  // keyboard natively, and an unlabeled full-screen "button"
+                  // would only confuse them.
+                  excludeFromSemantics: true,
                   onTap: _focusNode.unfocus,
                   child: AuraStateSwitcher(
                     child: query.isEmpty

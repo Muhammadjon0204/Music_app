@@ -57,8 +57,22 @@ class _AuraPressableState extends State<AuraPressable> {
 
   bool get _enabled => widget.onPressed != null;
 
+  @override
+  void didUpdateWidget(AuraPressable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_enabled) _pressed = false;
+  }
+
   void _setPressed(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
+    if (_pressed == value) return;
+    // When the widget is rebuilt as disabled mid-press, the previous gesture
+    // recognizer reports a cancel during that build; there is nothing to
+    // update then, and setState would be illegal.
+    if (!_enabled) {
+      _pressed = false;
+      return;
+    }
+    setState(() => _pressed = value);
   }
 
   void _handleTap() {

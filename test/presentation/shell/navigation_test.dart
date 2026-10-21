@@ -75,12 +75,15 @@ void main() {
 
     await tester.tap(iconButton(AuraStrings.devGallery));
     // The gallery has a looping spinner, so pump a fixed time instead of
-    // waiting for all animations to settle.
+    // waiting for all animations to settle. The first frame of a push is
+    // offstage (for Hero measurement); the second runs the transition.
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Дизайн-система'), findsOneWidget);
     expect(find.byType(AuraTabBar), findsOneWidget);
 
     await tester.tap(tab('Главная'));
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Дизайн-система'), findsNothing);
     expect(find.text('Доброе утро'), findsOneWidget);

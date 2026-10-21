@@ -70,18 +70,23 @@ class AuraSearchField extends StatelessWidget {
       );
     }
 
-    return CupertinoSearchTextField(
-      controller: controller,
-      focusNode: focusNode,
-      onChanged: onChanged,
-      placeholder: placeholder,
-      style: text.body,
-      placeholderStyle: placeholderStyle,
-      backgroundColor: colors.surface,
-      borderRadius: BorderRadius.circular(AuraRadii.md),
-      itemColor: colors.textTertiary,
-      cursorColor: colors.accent,
-      padding: const EdgeInsetsDirectional.fromSTEB(6, 11, 6, 11),
+    // The native field is ~43pt with these paddings; enforce Apple's 44pt
+    // minimum regardless of font metrics.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: AuraSizes.minTouchTarget),
+      child: CupertinoSearchTextField(
+        controller: controller,
+        focusNode: focusNode,
+        onChanged: onChanged,
+        placeholder: placeholder,
+        style: text.body,
+        placeholderStyle: placeholderStyle,
+        backgroundColor: colors.surface,
+        borderRadius: BorderRadius.circular(AuraRadii.md),
+        itemColor: colors.textTertiary,
+        cursorColor: colors.accent,
+        padding: const EdgeInsetsDirectional.fromSTEB(6, 11, 6, 11),
+      ),
     );
   }
 }

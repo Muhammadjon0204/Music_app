@@ -44,10 +44,12 @@ class AuraSectionHeader extends StatelessWidget {
               feedback: AuraPressFeedback.opacity,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
+                  minWidth: AuraSizes.minTouchTarget,
                   minHeight: AuraSizes.minTouchTarget,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(actionLabel, style: text.footnote),
                     const SizedBox(width: AuraSpacing.xxs),

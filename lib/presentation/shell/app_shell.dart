@@ -50,14 +50,18 @@ class AppShell extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (track != null)
-              MiniPlayerBar(
-                track: track,
-                isPlaying: isPlaying,
-                onTogglePlay: controller == null
-                    ? null
-                    : () => unawaited(
-                        isPlaying ? controller.pause() : controller.play(),
-                      ),
+              SafeArea(
+                top: false,
+                bottom: false,
+                child: MiniPlayerBar(
+                  track: track,
+                  isPlaying: isPlaying,
+                  onTogglePlay: controller == null
+                      ? null
+                      : () => unawaited(
+                          isPlaying ? controller.pause() : controller.play(),
+                        ),
+                ),
               ),
             AuraTabBar(
               items: _tabs,

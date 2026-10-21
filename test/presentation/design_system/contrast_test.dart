@@ -46,4 +46,29 @@ void main() {
   test('accent is visible as a UI element on background (3:1)', () {
     expect(contrast(c.accent, c.background), greaterThanOrEqualTo(nonTextAA));
   });
+
+  // The featured banner puts text over an artwork gradient with a dark scrim
+  // that grows to 75% at the bottom. The title (large text, 3:1) sits from
+  // ~55% height down, the subtitle (small text, 4.5:1) from ~80%.
+  test('banner text stays readable on every artwork gradient', () {
+    const scrimMax = 0.75;
+    for (final gradient in c.artworkGradients) {
+      for (final color in gradient) {
+        Color behind(double heightFraction) => Color.alphaBlend(
+          c.background.withValues(alpha: scrimMax * heightFraction),
+          color,
+        );
+        expect(
+          contrast(c.textPrimary, behind(0.55)),
+          greaterThanOrEqualTo(nonTextAA),
+          reason: 'title on $color',
+        );
+        expect(
+          contrast(c.textPrimary, behind(0.8)),
+          greaterThanOrEqualTo(textAA),
+          reason: 'subtitle on $color',
+        );
+      }
+    }
+  });
 }

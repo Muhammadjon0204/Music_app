@@ -33,13 +33,20 @@ class AuraTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.auraColors;
+    final insets = MediaQuery.paddingOf(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.background,
         border: Border(top: BorderSide(color: colors.border, width: 0.5)),
       ),
+      // The background spans edge to edge; the tabs stay clear of the home
+      // indicator and of the side insets in landscape.
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+        padding: EdgeInsets.only(
+          left: insets.left,
+          right: insets.right,
+          bottom: insets.bottom,
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AuraSizes.tabBarHeight),
           child: Row(
