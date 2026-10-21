@@ -1,5 +1,7 @@
 # AURA
 
+[![CI](https://github.com/Muhammadjon0204/Music_app/actions/workflows/ci.yml/badge.svg)](https://github.com/Muhammadjon0204/Music_app/actions/workflows/ci.yml)
+
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
@@ -55,6 +57,29 @@ dart format lib test
 flutter analyze
 flutter test
 ```
+
+The test suite covers:
+
+| Folder | What it guards |
+|---|---|
+| `test/architecture/` | Layer boundaries, no hard-coded colors, demo data wired only in `main.dart` |
+| `test/domain/`, `test/core/`, `test/application/` | Models, invariants, config, debounce, error handling |
+| `test/presentation/` | Components, screens, navigation, contrast, localization |
+| `test/stress/` | Every screen on 6 devices (incl. landscape, iPad) × 4 iOS text sizes up to ×3.0 with safe areas; edge cases; VoiceOver labels, 44 pt tap targets and rendered text contrast; Reduce Motion; iOS swipe-back |
+
+## Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push to
+`main` and every pull request:
+
+1. **Linux** — format check, `flutter analyze`, all tests in random order.
+2. **macOS 26 / Xcode** — `flutter build ios --simulator` on a real Mac
+   runner, so iOS build breakages show up without a local Mac.
+
+Flutter is installed from the official repository at the pinned version;
+third-party actions are pinned by commit SHA. The simulator build needs no
+code signing, so the workflow uses no secrets. It does **not** replace
+testing on a physical iPhone (background audio, lock screen, Bluetooth).
 
 ## Project identifiers
 

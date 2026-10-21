@@ -1,0 +1,45 @@
+name: Set up Flutter
+description: Installs the pinned Flutter SDK from the official repository (cached) and resolves packages.
+
+inputs:
+  flutter-version:
+    description: Flutter release tag, e.g. 3.47.7
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Flutter SDK
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.tool_cache }}/flutter-${{ inputs.flutter-version }}
+        key: flutter-sdk-${{ runner.os }}-${{ runner.arch }}-${{ inputs.flutter-version }}
+
+    - name: Cache pub packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.pub-cache
+        key: pub-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pubspec.lock') }}
+        restore-keys: pub-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Install Flutter
+      shell: bash
+      env:
+        FLUTTER_VERSION: ${{ inputs.flutter-version }}
+      run: |
+        sdk="$RUNNER_TOOL_CACHE/flutter-$FLUTTER_VERSION"
+        if [ ! -x "$sdk/bin/flutter" ]; then
+          git clone --depth 1 --branch "$FLUTTER_VERSION" \
+            https://github.com/flutter/flutter.git "$sdk"
+        fi
+        echo "$sdk/bin" >> "$GITHUB_PATH"
+
+    - name: Flutter version
+      shell: bash
+      run: |
+        flutter config --no-analytics
+        flutter --version
+
+    - name: Get packages
+      shell: bash
+      run: flutter pub get
