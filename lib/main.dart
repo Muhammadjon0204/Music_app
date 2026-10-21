@@ -2,11 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app/app/app.dart';
-import 'package:music_app/app/app_providers.dart';
+import 'package:music_app/application/home/home_feed_provider.dart';
+import 'package:music_app/application/infrastructure_providers.dart';
 import 'package:music_app/core/logging/app_logger.dart';
+import 'package:music_app/data/demo/demo_home_feed_source.dart';
 
 void main() {
-  final container = ProviderContainer();
+  // Composition root: binds implementations to application contracts.
+  final container = ProviderContainer(
+    overrides: [
+      // DEMO DATA until the local library exists (Phase 7).
+      homeFeedSourceProvider.overrideWithValue(const DemoHomeFeedSource()),
+    ],
+  );
   final logger = container.read(appLoggerProvider);
 
   FlutterError.onError = (details) {

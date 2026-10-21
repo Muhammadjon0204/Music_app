@@ -1,11 +1,14 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:music_app/app/app.dart';
+
+import 'helpers/aura_app_harness.dart';
 
 void main() {
-  testWidgets('App boots into the themed component gallery', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: AuraApp()));
+  testWidgets('App boots into Home with the tab bar', (tester) async {
+    await pumpAuraApp(tester);
 
-    expect(find.text('Дизайн-система'), findsOneWidget);
+    expect(find.text('Доброе утро'), findsOneWidget);
+    expect(find.text('Главная'), findsOneWidget);
+    expect(find.text('Поиск'), findsOneWidget);
+    expect(find.text('Библиотека'), findsOneWidget);
   });
 }

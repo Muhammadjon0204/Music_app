@@ -3,8 +3,8 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 3 — Design System.** The app currently opens a temporary
-> component gallery. No music features are implemented yet.
+> Status: **Phase 4 — Home and navigation.** Tabs (Home, Search, Library)
+> work; Home shows clearly labelled **demo data**. No audio playback yet.
 > Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 > Design system: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).
 

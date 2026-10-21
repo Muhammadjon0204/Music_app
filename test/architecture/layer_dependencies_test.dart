@@ -28,6 +28,26 @@ void main() {
       'package:music_app/domain/',
     ],
     'lib/domain': [...frameworkImports, ...outerLayers],
+    // State and use cases: no UI toolkit, no knowledge of implementations.
+    'lib/application': [
+      'package:flutter/',
+      'dart:ui',
+      'dart:io',
+      'package:music_app/app/',
+      'package:music_app/presentation/',
+      'package:music_app/data/',
+      'package:music_app/audio/',
+      'package:music_app/integrations/',
+    ],
+    // Implementations of domain contracts.
+    'lib/data': [
+      'package:flutter/material.dart',
+      'package:flutter/cupertino.dart',
+      'package:flutter/widgets.dart',
+      'package:music_app/app/',
+      'package:music_app/application/',
+      'package:music_app/presentation/',
+    ],
   };
 
   final directive = RegExp(r'''^\s*(?:import|export)\s+['"]([^'"]+)['"]''');

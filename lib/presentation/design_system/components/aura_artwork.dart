@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:music_app/presentation/design_system/theme/aura_theme_context.dart';
+import 'package:music_app/presentation/design_system/tokens/aura_colors.dart';
 import 'package:music_app/presentation/design_system/tokens/aura_dimensions.dart';
 import 'package:music_app/presentation/design_system/tokens/aura_motion.dart';
 
@@ -35,10 +36,9 @@ class AuraArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.auraColors;
-    final gradients = colors.artworkGradients;
     final placeholder = _Placeholder(
       size: size,
-      colors: gradients[_stableIndex(placeholderSeed, gradients.length)],
+      colors: placeholderGradient(placeholderSeed, colors),
       iconColor: colors.textPrimary.withValues(alpha: 0.7),
     );
 
@@ -90,12 +90,14 @@ class AuraArtwork extends StatelessWidget {
     );
   }
 
-  static int _stableIndex(String seed, int length) {
+  /// The placeholder gradient for [seed]; stable across launches.
+  static List<Color> placeholderGradient(String seed, AuraColors colors) {
     var hash = 0;
     for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
-    return hash % length;
+    final gradients = colors.artworkGradients;
+    return gradients[hash % gradients.length];
   }
 }
 

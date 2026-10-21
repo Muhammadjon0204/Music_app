@@ -44,6 +44,15 @@ class _DesignSystemGalleryScreenState extends State<DesignSystemGalleryScreen> {
                 bottom: AuraSpacing.huge + MediaQuery.paddingOf(context).bottom,
               ),
               children: [
+                if (Navigator.of(context).canPop())
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: AuraIconButton(
+                      icon: CupertinoIcons.chevron_left,
+                      semanticLabel: 'Назад',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
                 _Padded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
