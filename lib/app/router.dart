@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/dev/design_system_gallery_screen.dart';
 import 'package:music_app/presentation/home/home_screen.dart';
+import 'package:music_app/domain/music/ids.dart';
+import 'package:music_app/presentation/library/library_list_screens.dart';
 import 'package:music_app/presentation/library/library_screen.dart';
+import 'package:music_app/presentation/library/track_collection_screens.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/player/now_playing_screen.dart';
 import 'package:music_app/presentation/player/queue_screen.dart';
@@ -34,6 +37,29 @@ Page<void> _sheetPage(GoRouterState state, Widget child) =>
       child: child,
     );
 
+/// Album, artist and playlist pages, available inside every tab so they
+/// open in that tab's own history.
+List<RouteBase> _detailRoutes() {
+  String id(GoRouterState state) => state.pathParameters['id']!;
+  return [
+    GoRoute(
+      path: '${DetailKind.album.name}/:id',
+      pageBuilder: (_, state) =>
+          _page(state, AlbumScreen(albumId: AlbumId(id(state)))),
+    ),
+    GoRoute(
+      path: '${DetailKind.artist.name}/:id',
+      pageBuilder: (_, state) =>
+          _page(state, ArtistScreen(artistId: ArtistId(id(state)))),
+    ),
+    GoRoute(
+      path: '${DetailKind.playlist.name}/:id',
+      pageBuilder: (_, state) =>
+          _page(state, PlaylistScreen(playlistId: PlaylistId(id(state)))),
+    ),
+  ];
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: AppRoutes.home,
@@ -56,6 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       pageBuilder: (_, state) =>
                           _page(state, const DesignSystemGalleryScreen()),
                     ),
+                  ..._detailRoutes(),
                 ],
               ),
             ],
@@ -70,6 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     focusRequest: state.uri.queryParameters['focus'],
                   ),
                 ),
+                routes: _detailRoutes(),
               ),
             ],
           ),
@@ -78,6 +106,34 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.library,
                 pageBuilder: (_, state) => _page(state, const LibraryScreen()),
+                routes: [
+                  GoRoute(
+                    path: 'tracks',
+                    pageBuilder: (_, state) =>
+                        _page(state, const AllTracksScreen()),
+                  ),
+                  GoRoute(
+                    path: 'favorites',
+                    pageBuilder: (_, state) =>
+                        _page(state, const FavoritesScreen()),
+                  ),
+                  GoRoute(
+                    path: 'albums',
+                    pageBuilder: (_, state) =>
+                        _page(state, const AlbumsScreen()),
+                  ),
+                  GoRoute(
+                    path: 'artists',
+                    pageBuilder: (_, state) =>
+                        _page(state, const ArtistsScreen()),
+                  ),
+                  GoRoute(
+                    path: 'playlists',
+                    pageBuilder: (_, state) =>
+                        _page(state, const PlaylistsScreen()),
+                  ),
+                  ..._detailRoutes(),
+                ],
               ),
             ],
           ),

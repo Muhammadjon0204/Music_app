@@ -15,8 +15,13 @@ final class Track {
     this.artistId,
     this.albumTitle,
     this.albumId,
+    this.albumArtist,
+    this.trackNumber,
+    this.discNumber,
+    this.year,
     this.duration,
     this.artworkUri,
+    this.addedAt,
   }) : sources = List.unmodifiable(sources) {
     if (title.trim().isEmpty) {
       throw ArgumentError.value(title, 'title', 'must not be empty');
@@ -36,9 +41,21 @@ final class Track {
   final String? albumTitle;
   final AlbumId? albumId;
 
+  /// Artist credited for the whole album (compilations, features).
+  final String? albumArtist;
+  final int? trackNumber;
+  final int? discNumber;
+  final int? year;
+
   /// Duration from metadata. The audio engine may report a different value.
   final Duration? duration;
   final Uri? artworkUri;
+
+  /// When the track entered the library.
+  final DateTime? addedAt;
+
+  /// The artist a track is filed under: the album artist when present.
+  String? get primaryArtist => albumArtist ?? artistName;
 
   @override
   bool operator ==(Object other) =>
@@ -50,8 +67,13 @@ final class Track {
       other.artistId == artistId &&
       other.albumTitle == albumTitle &&
       other.albumId == albumId &&
+      other.albumArtist == albumArtist &&
+      other.trackNumber == trackNumber &&
+      other.discNumber == discNumber &&
+      other.year == year &&
       other.duration == duration &&
-      other.artworkUri == artworkUri;
+      other.artworkUri == artworkUri &&
+      other.addedAt == addedAt;
 
   @override
   int get hashCode => Object.hash(
@@ -62,7 +84,12 @@ final class Track {
     artistId,
     albumTitle,
     albumId,
+    albumArtist,
+    trackNumber,
+    discNumber,
+    year,
     duration,
     artworkUri,
+    addedAt,
   );
 }

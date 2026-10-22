@@ -82,7 +82,7 @@ void main() {
       HomeFeed feed({Playlist? featured, List<Album> albums = const []}) =>
           HomeFeed(
             featured: featured,
-            recentlyPlayed: const [],
+            recentlyAdded: const [],
             albums: albums,
             playlists: const [],
           );
@@ -108,7 +108,7 @@ void main() {
 
     test('equality includes the demo flag', () {
       HomeFeed feed({required bool demo}) => HomeFeed(
-        recentlyPlayed: const [],
+        recentlyAdded: const [],
         albums: const [],
         playlists: const [],
         isDemo: demo,

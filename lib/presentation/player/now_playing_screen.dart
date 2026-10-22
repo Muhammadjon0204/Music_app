@@ -5,10 +5,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
+import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/playback/playback_controller.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
+import 'package:music_app/presentation/common/artwork_image.dart';
+import 'package:music_app/presentation/common/dialogs.dart';
 import 'package:music_app/presentation/common/failure_text.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
@@ -232,14 +236,14 @@ class _SilentChip extends StatelessWidget {
   }
 }
 
-class _Artwork extends StatelessWidget {
+class _Artwork extends ConsumerWidget {
   const _Artwork({required this.track, required this.size});
 
   final Track track;
   final double size;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.auraColors;
     final reduced = AuraMotion.isReduced(context);
     return HeroMode(
@@ -271,12 +275,44 @@ class _Artwork extends StatelessWidget {
             ),
             child: AuraArtwork(
               size: size,
+              image: artworkImage(ref, track.artworkUri),
               borderRadius: AuraRadii.lg,
               placeholderSeed: track.title,
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Heart for tracks in the library; hidden for anything else.
+class _FavoriteButton extends ConsumerWidget {
+  const _FavoriteButton({required this.track});
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final library = ref.watch(librarySnapshotProvider).value;
+    if (library == null || !library.contains(track.id)) {
+      return const SizedBox.shrink();
+    }
+    final favorite = library.isFavorite(track.id);
+    final colors = context.auraColors;
+    return AuraIconButton(
+      icon: favorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+      semanticLabel: AuraStrings.favoriteTrack,
+      toggled: favorite,
+      color: favorite ? colors.accentText : colors.textSecondary,
+      onPressed: () async {
+        final result = await ref
+            .read(libraryRepositoryProvider)
+            .setFavorite(track.id, favorite: !favorite);
+        if (result case Err(:final failure) when context.mounted) {
+          await showFailure(context, failure);
+        }
+      },
     );
   }
 }
@@ -307,23 +343,30 @@ class _Details extends StatelessWidget {
             alignment: Alignment.topLeft,
             children: [...previous, ?current],
           ),
-          child: Column(
+          child: Row(
             key: ValueKey(track.id),
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                track.title,
-                style: text.title2,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
+                      style: text.title2,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: AuraSpacing.xxs),
+                    Text(
+                      track.artistName ?? AuraStrings.unknownArtist,
+                      style: text.subhead,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: AuraSpacing.xxs),
-              Text(
-                track.artistName ?? AuraStrings.unknownArtist,
-                style: text.subhead,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              _FavoriteButton(track: track),
             ],
           ),
         ),

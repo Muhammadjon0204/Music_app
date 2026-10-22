@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app/domain/music/track.dart';
+import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/player/play_pause_button.dart';
@@ -68,9 +70,15 @@ class MiniPlayerBar extends StatelessWidget {
                                 enabled: !AuraMotion.isReduced(context),
                                 child: Hero(
                                   tag: playerArtworkHeroTag,
-                                  child: AuraArtwork(
-                                    size: 44,
-                                    placeholderSeed: track.title,
+                                  child: Consumer(
+                                    builder: (_, ref, _) => AuraArtwork(
+                                      size: 44,
+                                      image: artworkImage(
+                                        ref,
+                                        track.artworkUri,
+                                      ),
+                                      placeholderSeed: track.title,
+                                    ),
                                   ),
                                 ),
                               ),

@@ -19,7 +19,7 @@ void main() {
     expect(find.text('Демо-данные'), findsOneWidget);
     expect(find.text('Демо-тоны'), findsOneWidget);
     expect(find.text('Плейлист · 4 трека'), findsOneWidget);
-    expect(find.text('Недавно прослушанное'), findsOneWidget);
+    expect(find.text('Недавно добавленные'), findsOneWidget);
   });
 
   testWidgets('demo cards are not presented as tappable', (tester) async {
@@ -76,7 +76,7 @@ void main() {
     await pumpAuraApp(
       tester,
       homeFeedSource: FakeHomeFeedSource(
-        () async => Ok(HomeFeed(recentlyPlayed: [], albums: [], playlists: [])),
+        () async => Ok(HomeFeed(recentlyAdded: [], albums: [], playlists: [])),
       ),
     );
 

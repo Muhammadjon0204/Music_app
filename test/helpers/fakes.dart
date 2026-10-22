@@ -15,6 +15,9 @@ class FakePlaybackController implements PlaybackController {
   final _updates = StreamController<PlaybackSnapshot>.broadcast();
   int playCalls = 0;
   int pauseCalls = 0;
+  List<Track>? lastQueue;
+  int? lastStartIndex;
+  bool? shuffleEnabled;
 
   void emit(PlaybackSnapshot snapshot) {
     _snapshot = snapshot;
@@ -46,7 +49,10 @@ class FakePlaybackController implements PlaybackController {
   Future<void> seek(Duration position) async {}
 
   @override
-  Future<void> setQueue(List<Track> tracks, {int startIndex = 0}) async {}
+  Future<void> setQueue(List<Track> tracks, {int startIndex = 0}) async {
+    lastQueue = tracks;
+    lastStartIndex = startIndex;
+  }
 
   @override
   Future<void> skipToNext() async {}
@@ -58,7 +64,8 @@ class FakePlaybackController implements PlaybackController {
   Future<void> skipToIndex(int index) async {}
 
   @override
-  Future<void> setShuffleEnabled(bool enabled) async {}
+  Future<void> setShuffleEnabled(bool enabled) async =>
+      shuffleEnabled = enabled;
 
   @override
   Future<void> setRepeatMode(PlaybackRepeatMode mode) async {}

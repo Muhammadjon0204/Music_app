@@ -1,19 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music_app/application/home/home_feed_provider.dart';
+import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/core/error/app_failure.dart';
 import 'package:music_app/core/error/result.dart';
+import 'package:music_app/data/library/in_memory_library_repository.dart';
 import 'package:music_app/domain/home/home_feed.dart';
 
 import '../helpers/fakes.dart';
 
 void main() {
-  testWidgets('returns the feed on success', (tester) async {
-    final feed = HomeFeed(recentlyPlayed: [], albums: [], playlists: []);
+  // Plain test: awaiting provider futures needs real (not fake) async.
+  test('returns the feed on success', () async {
+    final feed = HomeFeed(recentlyAdded: [], albums: [], playlists: []);
     final source = FakeHomeFeedSource(() async => Ok(feed));
     final container = ProviderContainer.test(
-      overrides: [homeFeedSourceProvider.overrideWithValue(source)],
+      overrides: [
+        homeFeedSourceProvider.overrideWithValue(source),
+        libraryRepositoryProvider.overrideWithValue(
+          InMemoryLibraryRepository(),
+        ),
+      ],
     );
+
+    // Listen like a screen does: unlistened providers pause their
+    // dependencies (including the library stream) in Riverpod 3.
+    final subscription = container.listen(homeFeedProvider, (_, _) {});
+    addTearDown(subscription.close);
 
     expect(await container.read(homeFeedProvider.future), feed);
   });
@@ -25,7 +38,12 @@ void main() {
       () async => const Err(StorageFailure(debugMessage: 'disk')),
     );
     final container = ProviderContainer.test(
-      overrides: [homeFeedSourceProvider.overrideWithValue(source)],
+      overrides: [
+        homeFeedSourceProvider.overrideWithValue(source),
+        libraryRepositoryProvider.overrideWithValue(
+          InMemoryLibraryRepository(),
+        ),
+      ],
     );
     final subscription = container.listen(homeFeedProvider, (_, _) {});
     addTearDown(subscription.close);

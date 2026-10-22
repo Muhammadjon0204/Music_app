@@ -8,6 +8,7 @@ import 'package:music_app/domain/music/track_source.dart';
 /// rights). Replaced by the user's own library in Phase 7.
 abstract final class DemoCatalog {
   static const _artist = 'AURA · сгенерировано';
+  static const _album = 'Демо-тоны';
   static const _duration = Duration(seconds: 12);
 
   static final List<Track> tones = [
@@ -21,6 +22,8 @@ abstract final class DemoCatalog {
         id: TrackId('demo-tone-${i + 1}'),
         title: title,
         artistName: _artist,
+        albumTitle: _album,
+        trackNumber: i + 1,
         duration: _duration,
         sources: [BundledAudioSource('assets/demo_audio/tone_${i + 1}.wav')],
       ),

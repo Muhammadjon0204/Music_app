@@ -5,10 +5,14 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 6 — Local audio engine.** Real playback via just_audio
-> (iOS, Android, web, macOS) of four generated demo tones; Home shows
-> clearly labelled **demo data**. On Windows/Linux the player runs silently
-> and says so. Importing your own music comes in Phase 7.
+> Status: **Phase 7 — Local library.** Import your own audio files from the
+> Files app (copied into the app, deduplicated, tags and cover art read),
+> favorites, playlists, albums, artists, sorting and search; the library
+> survives restarts. Real playback via just_audio (iOS, Android, web, macOS);
+> on Windows/Linux the player runs silently and says so. On the web the
+> library lives in memory and offers four generated demo tones instead of
+> import. Home shows clearly labelled **demo data** until the library has
+> music.
 > Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 > Design system: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).
 

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
+import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/common/duration_format.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
@@ -35,6 +36,7 @@ class QueueScreen extends ConsumerWidget {
         isActive: active,
         leading: AuraArtwork(
           size: AuraSizes.artworkListTile,
+          image: artworkImage(ref, track.artworkUri),
           placeholderSeed: track.title,
         ),
         trailing: active

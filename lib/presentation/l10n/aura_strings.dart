@@ -19,12 +19,12 @@ abstract final class AuraStrings {
 
   static const searchPlaceholder = 'Поиск музыки, исполнителей, альбомов';
 
-  static const homeRecentlyPlayed = 'Недавно прослушанное';
+  static const homeRecentlyAdded = 'Недавно добавленные';
   static const homeAlbums = 'Альбомы';
   static const homePlaylists = 'Плейлисты';
   static const homeEmptyTitle = 'Здесь появится ваша музыка';
   static const homeEmptyMessage =
-      'Импорт музыки будет добавлен в следующей версии приложения.';
+      'Импортируйте свои аудиофайлы в разделе «Библиотека».';
 
   static const playlist = 'Плейлист';
   static const unknownArtist = 'Неизвестный исполнитель';
@@ -38,14 +38,102 @@ abstract final class AuraStrings {
   static const searchHintTitle = 'Найдите музыку';
   static const searchHintMessage =
       'Поиск по вашей библиотеке заработает, когда в ней появится музыка.';
+  static const searchHintMessageReady =
+      'Ищите по названию трека, исполнителю или альбому.';
   static String searchNoResultsTitle(String query) =>
       'По запросу «$query» ничего не найдено';
   static const searchNoResultsMessage = 'Ваша библиотека пока пуста.';
+  static const searchNoResultsInLibrary =
+      'Попробуйте другое название, исполнителя или альбом.';
 
   static const libraryEmptyTitle = 'Библиотека пуста';
   static const libraryEmptyMessage =
-      'Здесь появятся ваши треки, альбомы и плейлисты. '
-      'Импорт музыки будет добавлен в следующей версии.';
+      'Добавьте свои аудиофайлы из приложения «Файлы»: MP3, M4A, AAC, '
+      'FLAC, WAV, AIFF. Файлы копируются в AURA и работают без интернета.';
+  static const libraryEmptyMessageNoImport =
+      'В этой версии нельзя добавить свои файлы: у браузера нет постоянного '
+      'доступа к ним. Попробуйте демо-треки.';
+  static const importMusic = 'Импортировать музыку';
+  static const addDemoTracks = 'Добавить демо-треки';
+  static String importProgress(int done, int total) =>
+      'Импорт: $done из $total';
+  static String importAdded(int count) => 'Добавлено: ${trackCount(count)}';
+  static String importDuplicates(int count) =>
+      'Уже были в библиотеке: ${trackCount(count)}';
+  static String importFailed(int count) =>
+      'Не удалось добавить: $count '
+      '${pluralRu(count, 'файл', 'файла', 'файлов')}';
+  static const importUnsupportedHint =
+      'Поддерживаются MP3, M4A, AAC, FLAC, WAV, AIFF и CAF.';
+  static const importNothingAdded = 'Новых треков нет';
+  static const dismiss = 'Закрыть';
+  static const libraryStorageWarning =
+      'Не удалось открыть библиотеку на устройстве. Изменения не сохранятся '
+      'после перезапуска.';
+
+  static const favorites = 'Любимые треки';
+  static const playlists = 'Плейлисты';
+  static const albums = 'Альбомы';
+  static const artists = 'Исполнители';
+  static const allTracks = 'Вся музыка';
+  static const recentlyAdded = 'Недавно добавленные';
+  static const playAll = 'Слушать';
+  static const shuffleAll = 'Перемешать';
+  static const sortBy = 'Сортировка';
+  static const sortTitle = 'По названию';
+  static const sortArtist = 'По исполнителю';
+  static const sortRecent = 'Сначала новые';
+  static const cancel = 'Отмена';
+  static const more = 'Ещё';
+  static const favoriteTrack = 'Любимый трек';
+  static const addToFavorites = 'Добавить в любимые';
+  static const removeFromFavorites = 'Убрать из любимых';
+  static const addToPlaylist = 'Добавить в плейлист';
+  static const removeFromPlaylist = 'Убрать из плейлиста';
+  static const removeFromLibrary = 'Удалить из библиотеки';
+  static const removeFromLibraryConfirm =
+      'Трек будет удалён из AURA вместе с копией файла. Оригинал в «Файлах» '
+      'не затрагивается.';
+  static const remove = 'Удалить';
+  static const newPlaylist = 'Новый плейлист';
+  static const playlistName = 'Название плейлиста';
+  static const create = 'Создать';
+  static const rename = 'Переименовать';
+  static const save = 'Сохранить';
+  static const deletePlaylist = 'Удалить плейлист';
+  static const deletePlaylistConfirm =
+      'Плейлист будет удалён. Треки останутся в библиотеке.';
+  static const playlistNameInvalid =
+      'Название не может быть пустым или длиннее 100 символов.';
+  static const missingFile = 'Файл недоступен';
+  static const missingFileMessage =
+      'Копия этого трека больше не найдена на устройстве. Удалите его из '
+      'библиотеки и импортируйте заново.';
+  static const unknownAlbum = 'Неизвестный альбом';
+  static const notFoundTitle = 'Не найдено';
+  static const notFoundMessage = 'Возможно, это было удалено.';
+  static const favoritesEmptyTitle = 'Нет любимых треков';
+  static const favoritesEmptyMessage =
+      'Нажмите на сердечко в плеере или в меню трека.';
+  static const playlistEmptyTitle = 'Плейлист пуст';
+  static const playlistEmptyMessage =
+      'Добавьте треки через меню «Ещё» у любого трека.';
+  static const playlistsEmptyTitle = 'Плейлистов пока нет';
+  static const playlistsEmptyMessage =
+      'Плейлисты хранятся только на этом устройстве.';
+  static const albumsEmptyTitle = 'Альбомов пока нет';
+  static const albumsEmptyMessage =
+      'Альбомы появляются у треков с тегом «альбом».';
+  static const artistsEmptyTitle = 'Исполнителей пока нет';
+  static const artistsEmptyMessage =
+      'Исполнители появляются у треков с тегом «исполнитель».';
+  static const searchSectionTracks = 'Треки';
+  static String playlistsCount(int count) =>
+      '$count ${pluralRu(count, 'плейлист', 'плейлиста', 'плейлистов')}';
+  static String artistsCount(int count) =>
+      '$count ${pluralRu(count, 'исполнитель', 'исполнителя', 'исполнителей')}';
+  static String albumsCount(int count) =>
+      '$count ${pluralRu(count, 'альбом', 'альбома', 'альбомов')}';
 
   static const play = 'Воспроизвести';
   static const pause = 'Пауза';

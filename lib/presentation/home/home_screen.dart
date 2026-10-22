@@ -11,12 +11,16 @@ import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/domain/home/home_feed.dart';
 import 'package:music_app/domain/music/album.dart';
 import 'package:music_app/domain/music/playlist.dart';
+import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/content_width.dart';
+import 'package:music_app/presentation/common/play_tracks.dart';
 import 'package:music_app/presentation/common/failure_text.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/home/greeting.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
+import 'package:music_app/presentation/navigation/detail_navigation.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -46,13 +50,15 @@ class HomeScreen extends ConsumerWidget {
       final tracks = value.featuredTracks;
       final onPlayFeatured = controller == null || tracks.isEmpty
           ? null
-          : () async {
-              await controller.setQueue(tracks);
-              await controller.play();
-            };
+          : () => unawaited(playTracks(ref, playableTracks(ref, tracks)));
       body = [
         SliverList.list(
-          children: _sections(value, onPlayFeatured: onPlayFeatured),
+          children: _sections(
+            context,
+            ref,
+            value,
+            onPlayFeatured: onPlayFeatured,
+          ),
         ),
       ];
     } else if (error != null && !feed.isLoading) {
@@ -113,15 +119,33 @@ class HomeScreen extends ConsumerWidget {
 
   static const _maxCarouselItems = 10;
 
-  List<Widget> _sections(HomeFeed feed, {VoidCallback? onPlayFeatured}) {
+  List<Widget> _sections(
+    BuildContext context,
+    WidgetRef ref,
+    HomeFeed feed, {
+    VoidCallback? onPlayFeatured,
+  }) {
+    // Demo cards are illustrations only: there is nothing behind them.
+    VoidCallback? open(DetailKind kind, String id) =>
+        feed.isDemo ? null : () => openDetail(context, kind, id);
+
     Widget albumCard(Album album) => AuraMediaCard(
       title: album.title,
       subtitle: album.artistName ?? AuraStrings.unknownArtist,
+      image: artworkImage(ref, album.artworkUri),
+      onPressed: open(DetailKind.album, album.id.value),
     );
     Widget playlistCard(Playlist playlist) => AuraMediaCard(
       title: playlist.name,
       subtitle: AuraStrings.trackCount(playlist.trackIds.length),
+      image: artworkImage(ref, playlist.artworkUri),
+      onPressed: open(DetailKind.playlist, playlist.id.value),
     );
+    final featuredName = switch (feed.featuredKind) {
+      HomeFeaturedKind.playlist => feed.featured?.name ?? '',
+      HomeFeaturedKind.favorites => AuraStrings.favorites,
+      HomeFeaturedKind.allTracks => AuraStrings.allTracks,
+    };
 
     return [
       if (feed.featured case final featured?)
@@ -132,12 +156,17 @@ class HomeScreen extends ConsumerWidget {
             AuraSpacing.screenHorizontal,
             0,
           ),
-          child: _FeaturedBanner(playlist: featured, onPlay: onPlayFeatured),
+          child: _FeaturedBanner(
+            name: featuredName,
+            trackCount: featured.trackIds.length,
+            isPlaylist: feed.featuredKind == HomeFeaturedKind.playlist,
+            onPlay: onPlayFeatured,
+          ),
         ),
-      if (feed.recentlyPlayed.isNotEmpty)
+      if (feed.recentlyAdded.isNotEmpty)
         _Carousel(
-          title: AuraStrings.homeRecentlyPlayed,
-          cards: feed.recentlyPlayed.take(_maxCarouselItems).map(albumCard),
+          title: AuraStrings.homeRecentlyAdded,
+          cards: feed.recentlyAdded.take(_maxCarouselItems).map(albumCard),
         ),
       if (feed.albums.isNotEmpty)
         _Carousel(
@@ -247,9 +276,19 @@ class _DemoBadge extends StatelessWidget {
 }
 
 class _FeaturedBanner extends StatelessWidget {
-  const _FeaturedBanner({required this.playlist, required this.onPlay});
+  const _FeaturedBanner({
+    required this.name,
+    required this.trackCount,
+    required this.isPlaylist,
+    required this.onPlay,
+  });
 
-  final Playlist playlist;
+  final String name;
+  final int trackCount;
+
+  /// "Плейлист · N треков" for a playlist, just the count for the
+  /// favorites and all-tracks collections.
+  final bool isPlaylist;
 
   /// Null hides the play button (no player or no playable tracks).
   final VoidCallback? onPlay;
@@ -266,7 +305,7 @@ class _FeaturedBanner extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: AuraArtwork.placeholderGradient(playlist.name, colors),
+            colors: AuraArtwork.placeholderGradient(name, colors),
           ),
         ),
         // Scrim keeps the text readable on any gradient.
@@ -297,15 +336,17 @@ class _FeaturedBanner extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              playlist.name,
+                              name,
                               style: text.title1,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: AuraSpacing.xxs),
                             Text(
-                              '${AuraStrings.playlist} · '
-                              '${AuraStrings.trackCount(playlist.trackIds.length)}',
+                              isPlaylist
+                                  ? '${AuraStrings.playlist} · '
+                                        '${AuraStrings.trackCount(trackCount)}'
+                                  : AuraStrings.trackCount(trackCount),
                               style: text.subhead.copyWith(
                                 color: colors.textPrimary,
                               ),
@@ -318,7 +359,7 @@ class _FeaturedBanner extends StatelessWidget {
                       const SizedBox(width: AuraSpacing.md),
                       AuraIconButton.filled(
                         icon: CupertinoIcons.play_fill,
-                        semanticLabel: AuraStrings.playPlaylist(playlist.name),
+                        semanticLabel: AuraStrings.playPlaylist(name),
                         diameter: 52,
                         onPressed: onPlay,
                       ),

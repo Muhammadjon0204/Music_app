@@ -25,7 +25,7 @@ final class DemoHomeFeedSource implements HomeFeedSource {
           trackIds: [for (final track in DemoCatalog.tones) track.id],
         ),
         featuredTracks: DemoCatalog.tones,
-        recentlyPlayed: [
+        recentlyAdded: [
           _album('1', 'Ночные огни', 'Aurora Lines', 2024),
           _album('2', 'Неоновый дождь', 'Midnight Static', 2023),
           _album('3', 'Тихий океан', 'Lumen', 2022),

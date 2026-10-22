@@ -11,7 +11,7 @@ void main() {
     expect(feed.isDemo, isTrue);
     expect(feed.isEmpty, isFalse);
     final ids = [
-      ...feed.recentlyPlayed.map((a) => a.id.value),
+      ...feed.recentlyAdded.map((a) => a.id.value),
       ...feed.albums.map((a) => a.id.value),
       ...feed.playlists.map((p) => p.id.value),
       feed.featured!.id.value,
@@ -24,7 +24,7 @@ void main() {
 
     final feed = (result as Ok<HomeFeed>).value;
     expect(
-      [...feed.recentlyPlayed, ...feed.albums].map((a) => a.artworkUri),
+      [...feed.recentlyAdded, ...feed.albums].map((a) => a.artworkUri),
       everyElement(isNull),
     );
   });

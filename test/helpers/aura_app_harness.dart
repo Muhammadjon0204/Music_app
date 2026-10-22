@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music_app/app/app.dart';
 import 'package:music_app/application/home/home_feed_provider.dart';
 import 'package:music_app/application/infrastructure_providers.dart';
+import 'package:music_app/application/library/library_providers.dart';
+import 'package:music_app/data/library/in_memory_library_repository.dart';
+import 'package:music_app/domain/library/library_repository.dart';
 import 'package:music_app/data/demo/demo_home_feed_source.dart';
 import 'package:music_app/domain/home/home_feed.dart';
 
@@ -92,6 +95,7 @@ void applyDevice(WidgetTester tester, TestDevice device) {
 Future<void> pumpAuraApp(
   WidgetTester tester, {
   HomeFeedSource homeFeedSource = const DemoHomeFeedSource(),
+  LibraryRepository? library,
   DateTime? now,
   List<Override> overrides = const [],
   TestDevice device = iPhone15,
@@ -105,6 +109,9 @@ Future<void> pumpAuraApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        libraryRepositoryProvider.overrideWithValue(
+          library ?? InMemoryLibraryRepository(),
+        ),
         homeFeedSourceProvider.overrideWithValue(homeFeedSource),
         clockProvider.overrideWithValue(() => fixedNow),
         ...overrides,

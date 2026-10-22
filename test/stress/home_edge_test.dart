@@ -32,7 +32,7 @@ void main() {
       homeFeedSource: feedOf(
         HomeFeed(
           featured: playlist('Только баннер', 3),
-          recentlyPlayed: [],
+          recentlyAdded: [],
           albums: [],
           playlists: [],
         ),
@@ -49,7 +49,7 @@ void main() {
       tester,
       homeFeedSource: feedOf(
         HomeFeed(
-          recentlyPlayed: [album(1, artist: null)],
+          recentlyAdded: [album(1, artist: null)],
           albums: [],
           playlists: [],
         ),
@@ -68,7 +68,7 @@ void main() {
       homeFeedSource: feedOf(
         HomeFeed(
           featured: playlist(long, 12345),
-          recentlyPlayed: [album(1, title: long, artist: long)],
+          recentlyAdded: [album(1, title: long, artist: long)],
           albums: [album(2, title: long)],
           playlists: [playlist('$long 2', 1)],
         ),
@@ -83,7 +83,7 @@ void main() {
       tester,
       homeFeedSource: feedOf(
         HomeFeed(
-          recentlyPlayed: [],
+          recentlyAdded: [],
           albums: [for (var i = 0; i < 25; i++) album(i)],
           playlists: [],
         ),
@@ -153,7 +153,7 @@ void main() {
     expect(find.byType(AuraSkeletonBox), findsWidgets);
 
     pending.complete(
-      Ok(HomeFeed(recentlyPlayed: [album(1)], albums: [], playlists: [])),
+      Ok(HomeFeed(recentlyAdded: [album(1)], albums: [], playlists: [])),
     );
     await tester.pump();
     await tester.pump();
