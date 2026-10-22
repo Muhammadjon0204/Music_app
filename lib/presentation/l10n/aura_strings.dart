@@ -128,6 +128,21 @@ abstract final class AuraStrings {
   static const artistsEmptyMessage =
       'Исполнители появляются у треков с тегом «исполнитель».';
   static const searchSectionTracks = 'Треки';
+  static String popularIn(String provider) => 'Популярное в $provider';
+  static String openIn(String provider) => 'Открыть в $provider';
+  static String onlyIn(String provider) => 'Только в $provider';
+  static String sourceIs(String provider) => 'Источник: $provider';
+  static const showMore = 'Показать ещё';
+  static String nothingFoundIn(String provider) =>
+      'В $provider ничего не найдено';
+  static const searchHintMessageOnline =
+      'Ищите по своей библиотеке и в каталоге Audius: название трека или '
+      'исполнитель.';
+  static const linkOpenFailed = 'Не удалось открыть ссылку';
+  static const homeLibraryHintTitle = 'Добавьте свою музыку';
+  static const homeLibraryHintMessage =
+      'Импортируйте аудиофайлы в разделе «Библиотека» — они будут '
+      'работать без интернета.';
   static String playlistsCount(int count) =>
       '$count ${pluralRu(count, 'плейлист', 'плейлиста', 'плейлистов')}';
   static String artistsCount(int count) =>
@@ -173,6 +188,28 @@ abstract final class AuraStrings {
   static const failureNetworkTitle = 'Нет соединения';
   static const failureNetworkMessage =
       'Проверьте подключение к интернету и попробуйте снова.';
+  static const failureTimeoutTitle = 'Сервис не отвечает';
+  static const failureTimeoutMessage =
+      'Слишком долго нет ответа. Попробуйте ещё раз чуть позже.';
+  static const failureServerTitle = 'Сбой на стороне сервиса';
+  static const failureServerMessage =
+      'Музыкальный сервис временно не работает. Попробуйте позже.';
+  static const failureRateLimitedTitle = 'Слишком много запросов';
+  static const failureRateLimitedMessage =
+      'Сервис просит немного подождать. Попробуйте через минуту.';
+  static const failureNotFoundTitle = 'Не найдено';
+  static const failureNotFoundMessage =
+      'Возможно, автор удалил трек или он больше недоступен.';
+  static const failureAccessDeniedTitle = 'Нет доступа';
+  static const failureAccessDeniedMessage =
+      'Этот трек недоступен для воспроизведения здесь — например, в вашем '
+      'регионе или по решению автора.';
+  static const failureInvalidResponseTitle = 'Непонятный ответ сервиса';
+  static const failureInvalidResponseMessage =
+      'Сервис прислал данные, которые не удалось прочитать.';
+  static const failureFeatureUnavailableTitle = 'Недоступно';
+  static const failureFeatureUnavailableMessage =
+      'Этот источник не поддерживает такое действие.';
   static const failureStorageTitle = 'Ошибка хранилища';
   static const failureStorageMessage =
       'Не удалось прочитать или сохранить данные на устройстве.';

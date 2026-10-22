@@ -21,8 +21,10 @@ final class Track {
     this.year,
     this.duration,
     this.artworkUri,
+    List<Uri> artworkAlternatives = const [],
     this.addedAt,
-  }) : sources = List.unmodifiable(sources) {
+  }) : sources = List.unmodifiable(sources),
+       artworkAlternatives = List.unmodifiable(artworkAlternatives) {
     if (title.trim().isEmpty) {
       throw ArgumentError.value(title, 'title', 'must not be empty');
     }
@@ -51,6 +53,10 @@ final class Track {
   final Duration? duration;
   final Uri? artworkUri;
 
+  /// The same cover on other hosts, tried in order when [artworkUri] fails
+  /// (online providers replicate images across nodes). Not stored.
+  final List<Uri> artworkAlternatives;
+
   /// When the track entered the library.
   final DateTime? addedAt;
 
@@ -73,6 +79,7 @@ final class Track {
       other.year == year &&
       other.duration == duration &&
       other.artworkUri == artworkUri &&
+      elementsEqual(other.artworkAlternatives, artworkAlternatives) &&
       other.addedAt == addedAt;
 
   @override
@@ -90,6 +97,7 @@ final class Track {
     year,
     duration,
     artworkUri,
+    Object.hashAll(artworkAlternatives),
     addedAt,
   );
 }

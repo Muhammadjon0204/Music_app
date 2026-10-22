@@ -36,7 +36,11 @@ class QueueScreen extends ConsumerWidget {
         isActive: active,
         leading: AuraArtwork(
           size: AuraSizes.artworkListTile,
-          image: artworkImage(ref, track.artworkUri),
+          image: artworkImage(
+            ref,
+            track.artworkUri,
+            alternatives: track.artworkAlternatives,
+          ),
           placeholderSeed: track.title,
         ),
         trailing: active

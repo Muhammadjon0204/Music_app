@@ -17,6 +17,7 @@ import 'package:music_app/presentation/common/failure_text.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
+import 'package:music_app/presentation/online/online_tracks.dart';
 import 'package:music_app/presentation/player/play_pause_button.dart';
 import 'package:music_app/presentation/player/player_palette.dart';
 import 'package:music_app/presentation/player/player_progress.dart';
@@ -275,10 +276,65 @@ class _Artwork extends ConsumerWidget {
             ),
             child: AuraArtwork(
               size: size,
-              image: artworkImage(ref, track.artworkUri),
+              image: artworkImage(
+                ref,
+                track.artworkUri,
+                alternatives: track.artworkAlternatives,
+              ),
               borderRadius: AuraRadii.lg,
               placeholderSeed: track.title,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Источник: Audius ↗" for online tracks: attribution and a way to the
+/// original page. Nothing for local music.
+class _SourceLink extends ConsumerWidget {
+  const _SourceLink({required this.track});
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final source = onlineSourceOf(track);
+    if (source == null) return const SizedBox.shrink();
+    final colors = context.auraColors;
+    final name = providerNameOf(ref, track);
+    final label = Text(
+      AuraStrings.sourceIs(name),
+      style: context.auraText.footnote.copyWith(color: colors.textSecondary),
+    );
+    if (!source.canOpenExternally) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AuraSpacing.xs),
+        child: label,
+      );
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: AuraPressable(
+        onPressed: () => unawaited(openOriginal(context, ref, track)),
+        semanticLabel: AuraStrings.openIn(name),
+        feedback: AuraPressFeedback.opacity,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AuraSizes.minTouchTarget,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(child: label),
+              const SizedBox(width: AuraSpacing.xs),
+              Icon(
+                CupertinoIcons.arrow_up_right,
+                size: AuraSizes.iconSm,
+                color: colors.textSecondary,
+              ),
+            ],
           ),
         ),
       ),
@@ -370,6 +426,7 @@ class _Details extends StatelessWidget {
             ],
           ),
         ),
+        _SourceLink(track: track),
         if (failure != null) ...[
           const SizedBox(height: AuraSpacing.sm),
           Row(
@@ -423,7 +480,8 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repeat = snapshot.repeatMode;
-    final playing = snapshot.isPlaying;
+    // Follows intent, so "pause" works while a stream is still buffering.
+    final playing = snapshot.playWhenReady;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -442,6 +500,7 @@ class _Controls extends StatelessWidget {
         ),
         PlayPauseButton(
           isPlaying: playing,
+          isWaiting: snapshot.isWaiting,
           diameter: AuraSizes.playButtonLarge,
           iconSize: 30,
           onPressed: () =>

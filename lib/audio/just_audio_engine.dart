@@ -5,10 +5,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:music_app/audio/audio_engine.dart';
+import 'package:music_app/audio/audio_error_classifier.dart';
 
 /// Real playback through just_audio (iOS, Android, web, macOS).
 final class JustAudioEngine implements AudioEngine {
-  JustAudioEngine({AudioPlayer? player}) : _player = player ?? AudioPlayer();
+  // just_audio's own interruption handling is off: it would pause the
+  // player behind the controller's back, leaving the UI out of sync.
+  // EnginePlaybackController handles interruptions instead.
+  JustAudioEngine({AudioPlayer? player})
+    : _player = player ?? AudioPlayer(handleInterruptions: false);
 
   final AudioPlayer _player;
 
@@ -24,11 +29,12 @@ final class JustAudioEngine implements AudioEngine {
       };
 
   /// Declares the app as a music player to the OS (iOS: playback category,
-  /// so audio plays with the silent switch on). Interruption handling comes
-  /// with background audio in Phase 8.
-  static Future<void> configureSession() async {
+  /// so audio plays with the silent switch on and in the background).
+  /// Returns the session for its interruption events.
+  static Future<AudioSession> configureSession() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
+    return session;
   }
 
   @override
@@ -37,8 +43,8 @@ final class JustAudioEngine implements AudioEngine {
         (state) => AudioEngineState(
           phase: switch (state.processingState) {
             ProcessingState.idle => AudioEnginePhase.idle,
-            ProcessingState.loading ||
-            ProcessingState.buffering => AudioEnginePhase.loading,
+            ProcessingState.loading => AudioEnginePhase.loading,
+            ProcessingState.buffering => AudioEnginePhase.buffering,
             ProcessingState.ready => AudioEnginePhase.ready,
             ProcessingState.completed => AudioEnginePhase.completed,
           },
@@ -46,6 +52,14 @@ final class JustAudioEngine implements AudioEngine {
         ),
       )
       .distinct();
+
+  @override
+  Stream<AudioEngineError> get errors => _player.errorStream.map(
+    (e) => AudioEngineError(
+      _classify(e.code, e.message),
+      'code ${e.code}: ${e.message}',
+    ),
+  );
 
   @override
   Stream<Duration> get positions => _player.positionStream;
@@ -61,16 +75,36 @@ final class JustAudioEngine implements AudioEngine {
     final source = switch (location) {
       AssetAudio(:final path) => AudioSource.asset(path),
       FileAudio(:final path) => AudioSource.file(path),
+      // just_audio follows redirects (e.g. to a signed CDN URL) itself.
+      StreamAudio(:final uri, :final headers) => AudioSource.uri(
+        uri,
+        headers: headers.isEmpty ? null : headers,
+      ),
     };
     try {
       return await _player.setAudioSource(source);
     } on PlayerInterruptedException {
       throw const AudioLoadInterrupted();
     } on PlayerException catch (e) {
-      throw AudioLoadException('code ${e.code}: ${e.message}');
+      throw AudioLoadException(
+        'code ${e.code}: ${e.message}',
+        kind: _classify(e.code, e.message),
+      );
     } on PlatformException catch (e) {
       throw AudioLoadException('platform ${e.code}: ${e.message}');
     }
+  }
+
+  static AudioErrorKind _classify(int code, String? message) =>
+      classifyAudioError(code: code, message: message, platform: _platform);
+
+  static AudioPlatform get _platform {
+    if (kIsWeb) return AudioPlatform.web;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => AudioPlatform.apple,
+      TargetPlatform.android => AudioPlatform.android,
+      _ => AudioPlatform.other,
+    };
   }
 
   // The plugin's play() future completes only when playback stops, so it
@@ -83,6 +117,9 @@ final class JustAudioEngine implements AudioEngine {
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setVolume(double volume) => _player.setVolume(volume);
 
   @override
   Future<void> dispose() => _player.dispose();

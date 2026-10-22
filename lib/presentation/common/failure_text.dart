@@ -28,6 +28,39 @@ import 'package:music_app/presentation/l10n/aura_strings.dart';
       AuraStrings.failureNetworkTitle,
       AuraStrings.failureNetworkMessage,
     ),
+    TimeoutFailure() => (
+      AuraStrings.failureTimeoutTitle,
+      AuraStrings.failureTimeoutMessage,
+    ),
+    ServerFailure() => (
+      AuraStrings.failureServerTitle,
+      AuraStrings.failureServerMessage,
+    ),
+    RateLimitedFailure() => (
+      AuraStrings.failureRateLimitedTitle,
+      AuraStrings.failureRateLimitedMessage,
+    ),
+    NotFoundFailure() => (
+      AuraStrings.failureNotFoundTitle,
+      AuraStrings.failureNotFoundMessage,
+    ),
+    AccessDeniedFailure() => (
+      AuraStrings.failureAccessDeniedTitle,
+      AuraStrings.failureAccessDeniedMessage,
+    ),
+    InvalidResponseFailure() => (
+      AuraStrings.failureInvalidResponseTitle,
+      AuraStrings.failureInvalidResponseMessage,
+    ),
+    FeatureUnavailableFailure() => (
+      AuraStrings.failureFeatureUnavailableTitle,
+      AuraStrings.failureFeatureUnavailableMessage,
+    ),
+    // Normally never shown: cancelled work has no audience.
+    CancelledFailure() => (
+      AuraStrings.failureUnexpectedTitle,
+      AuraStrings.failureUnexpectedMessage,
+    ),
     StorageFailure() => (
       AuraStrings.failureStorageTitle,
       AuraStrings.failureStorageMessage,

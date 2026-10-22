@@ -15,6 +15,7 @@ class MiniPlayerBar extends StatelessWidget {
     super.key,
     required this.track,
     required this.isPlaying,
+    this.isWaiting = false,
     required this.onTogglePlay,
     required this.onNext,
     required this.onOpen,
@@ -23,6 +24,7 @@ class MiniPlayerBar extends StatelessWidget {
 
   final Track track;
   final bool isPlaying;
+  final bool isWaiting;
   final VoidCallback? onTogglePlay;
   final VoidCallback? onNext;
   final VoidCallback? onOpen;
@@ -76,6 +78,7 @@ class MiniPlayerBar extends StatelessWidget {
                                       image: artworkImage(
                                         ref,
                                         track.artworkUri,
+                                        alternatives: track.artworkAlternatives,
                                       ),
                                       placeholderSeed: track.title,
                                     ),
@@ -110,6 +113,7 @@ class MiniPlayerBar extends StatelessWidget {
                       ),
                       PlayPauseButton(
                         isPlaying: isPlaying,
+                        isWaiting: isWaiting,
                         onPressed: onTogglePlay,
                       ),
                       AuraIconButton(

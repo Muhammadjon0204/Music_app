@@ -7,10 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app/application/home/home_feed_provider.dart';
 import 'package:music_app/application/infrastructure_providers.dart';
+import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/domain/home/home_feed.dart';
 import 'package:music_app/domain/music/album.dart';
 import 'package:music_app/domain/music/playlist.dart';
+import 'package:music_app/domain/providers/music_provider.dart';
 import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/common/play_tracks.dart';
@@ -21,6 +23,7 @@ import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/navigation/detail_navigation.dart';
+import 'package:music_app/presentation/online/popular_tracks_section.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -31,9 +34,19 @@ class HomeScreen extends ConsumerWidget {
     final now = ref.watch(clockProvider)();
     final value = feed.value;
     final error = feed.error;
+    // A real online catalog (Audius) fills Home even before any import.
+    final hasCatalog = ref
+        .watch(providerRegistryProvider)
+        .all
+        .any((p) => p is PopularTracksProvider);
 
     final List<Widget> body;
-    if (value != null && value.isEmpty) {
+    if (value != null && value.isEmpty && hasCatalog) {
+      body = const [
+        SliverToBoxAdapter(child: PopularTracksSection()),
+        SliverToBoxAdapter(child: _LibraryHint()),
+      ];
+    } else if (value != null && value.isEmpty) {
       // State views get the remaining height directly (they scroll
       // themselves at large text sizes) rather than being measured.
       body = const [
@@ -53,12 +66,10 @@ class HomeScreen extends ConsumerWidget {
           : () => unawaited(playTracks(ref, playableTracks(ref, tracks)));
       body = [
         SliverList.list(
-          children: _sections(
-            context,
-            ref,
-            value,
-            onPlayFeatured: onPlayFeatured,
-          ),
+          children: [
+            ..._sections(context, ref, value, onPlayFeatured: onPlayFeatured),
+            if (hasCatalog) const PopularTracksSection(),
+          ],
         ),
       ];
     } else if (error != null && !feed.isLoading) {
@@ -179,6 +190,48 @@ class HomeScreen extends ConsumerWidget {
           cards: feed.playlists.take(_maxCarouselItems).map(playlistCard),
         ),
     ];
+  }
+}
+
+/// Points an empty library at the import, below the online catalog.
+class _LibraryHint extends StatelessWidget {
+  const _LibraryHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.auraColors;
+    final text = context.auraText;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AuraSpacing.screenHorizontal,
+        AuraSpacing.sectionGap,
+        AuraSpacing.screenHorizontal,
+        0,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(AuraSpacing.lg),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border.all(color: colors.border),
+          borderRadius: BorderRadius.circular(AuraRadii.lg),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(AuraStrings.homeLibraryHintTitle, style: text.headline),
+            const SizedBox(height: AuraSpacing.xxs),
+            Text(AuraStrings.homeLibraryHintMessage, style: text.subhead),
+            const SizedBox(height: AuraSpacing.md),
+            AuraButton(
+              label: AuraStrings.tabLibrary,
+              icon: CupertinoIcons.music_albums,
+              variant: AuraButtonVariant.secondary,
+              onPressed: () => context.go(AppRoutes.library),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

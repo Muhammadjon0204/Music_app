@@ -8,11 +8,17 @@ class PlayPauseButton extends StatelessWidget {
     super.key,
     required this.isPlaying,
     required this.onPressed,
+    this.isWaiting = false,
     this.diameter,
     this.iconSize = AuraSizes.iconLg,
   });
 
+  /// Shows "pause" (playback is on or about to be).
   final bool isPlaying;
+
+  /// Audio is loading or buffering: a spinner replaces the glyph, and the
+  /// button still pauses.
+  final bool isWaiting;
   final VoidCallback? onPressed;
   final double? diameter;
   final double iconSize;
@@ -33,12 +39,21 @@ class PlayPauseButton extends StatelessWidget {
           child: faded,
         );
       },
-      child: Icon(
-        isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
-        key: ValueKey(isPlaying),
-        size: iconSize,
-        color: diameter != null ? colors.onAccent : colors.textPrimary,
-      ),
+      child: isWaiting
+          ? SizedBox.square(
+              key: const ValueKey('waiting'),
+              dimension: iconSize,
+              child: CupertinoActivityIndicator(
+                color: diameter != null ? colors.onAccent : colors.textPrimary,
+                radius: iconSize * 0.4,
+              ),
+            )
+          : Icon(
+              isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
+              key: ValueKey(isPlaying),
+              size: iconSize,
+              color: diameter != null ? colors.onAccent : colors.textPrimary,
+            ),
     );
 
     if (diameter != null) {

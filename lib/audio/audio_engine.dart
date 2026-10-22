@@ -21,7 +21,54 @@ final class FileAudio extends AudioLocation {
   String toString() => 'FileAudio(<file>)';
 }
 
-enum AudioEnginePhase { idle, loading, ready, completed }
+/// An HTTPS audio stream. The URL may redirect to a temporary signed URL;
+/// the engine follows it. Never stored: it is resolved again next time.
+final class StreamAudio extends AudioLocation {
+  StreamAudio(this.uri, {Map<String, String> headers = const {}})
+    : headers = Map.unmodifiable(headers) {
+    if (!uri.isScheme('https')) {
+      throw ArgumentError.value(uri.scheme, 'uri', 'must be https');
+    }
+  }
+
+  final Uri uri;
+  final Map<String, String> headers;
+
+  /// Host only: paths and queries can contain signatures or user data.
+  @override
+  String toString() => 'StreamAudio(${uri.host})';
+}
+
+/// [loading]: opening the source. [buffering]: opened, waiting for data
+/// (a stream on a slow network).
+enum AudioEnginePhase { idle, loading, buffering, ready, completed }
+
+/// Why the engine could not open or keep playing audio, as far as the
+/// platform tells. [unknown] when it does not say: never guessed.
+enum AudioErrorKind {
+  networkUnavailable,
+  timeout,
+  notFound,
+  accessDenied,
+  rateLimited,
+  server,
+  unsupportedFormat,
+  fileMissing,
+  unknown,
+}
+
+/// An error the engine reported while a source was loaded.
+final class AudioEngineError {
+  const AudioEngineError(this.kind, this.detail);
+
+  final AudioErrorKind kind;
+
+  /// Developer-facing detail; never shown to users.
+  final String detail;
+
+  @override
+  String toString() => 'AudioEngineError($kind, $detail)';
+}
 
 final class AudioEngineState {
   const AudioEngineState({required this.phase, required this.playing});
@@ -44,13 +91,14 @@ final class AudioEngineState {
 
 /// The audio could not be opened or decoded.
 final class AudioLoadException implements Exception {
-  const AudioLoadException(this.detail);
+  const AudioLoadException(this.detail, {this.kind = AudioErrorKind.unknown});
 
   /// Developer-facing detail; never shown to users.
   final String detail;
+  final AudioErrorKind kind;
 
   @override
-  String toString() => 'AudioLoadException($detail)';
+  String toString() => 'AudioLoadException($kind, $detail)';
 }
 
 /// A newer load replaced this one before it finished.
@@ -62,6 +110,9 @@ final class AudioLoadInterrupted implements Exception {
 /// tested without plugins and the plugin can be replaced in one place.
 abstract interface class AudioEngine {
   Stream<AudioEngineState> get states;
+
+  /// Errors after a source was loaded (e.g. the network drops mid-stream).
+  Stream<AudioEngineError> get errors;
 
   Stream<Duration> get positions;
 
@@ -80,6 +131,9 @@ abstract interface class AudioEngine {
   Future<void> pause();
 
   Future<void> seek(Duration position);
+
+  /// 0 (silent) to 1 (full).
+  Future<void> setVolume(double volume);
 
   Future<void> dispose();
 }

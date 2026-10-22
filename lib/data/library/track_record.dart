@@ -3,6 +3,10 @@ import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/music/track_source.dart';
 
 /// Database form of a [Track] (schema version 1).
+///
+/// New fields are only ever added as optional keys, so records written by
+/// older builds still read (missing keys mean "unknown") and no migration
+/// is needed.
 abstract final class TrackRecord {
   static Map<String, Object?> toMap(Track track) => {
     'title': track.title,
@@ -64,10 +68,13 @@ abstract final class TrackRecord {
           'type': 'bundled',
           'ref': assetPath,
         },
-        ProviderTrackSource(:final providerId, :final externalId) => {
+        ProviderTrackSource() => {
           'type': 'provider',
-          'provider': providerId.value,
-          'ref': externalId.value,
+          'provider': source.providerId.value,
+          'ref': source.externalId.value,
+          'availability': source.availability.name,
+          'url': ?source.originalUrl?.toString(),
+          'license': ?source.license,
         },
       };
 
@@ -80,8 +87,24 @@ abstract final class TrackRecord {
       'provider' when map['provider'] is String => ProviderTrackSource(
         providerId: ProviderId(map['provider']! as String),
         externalId: ExternalTrackId(ref),
+        availability: _availability(map['availability']),
+        originalUrl: _webUrl(map['url']),
+        license: map['license'] is String ? map['license']! as String : null,
       ),
       _ => null,
     };
+  }
+
+  /// Unknown or missing values (older records, newer builds) read as
+  /// [StreamAvailability.unknown], never as playable.
+  static StreamAvailability _availability(Object? raw) =>
+      StreamAvailability.values.asNameMap()[raw] ?? StreamAvailability.unknown;
+
+  /// Only web links are kept; anything else could open an unexpected app.
+  static Uri? _webUrl(Object? raw) {
+    if (raw is! String) return null;
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasAuthority) return null;
+    return uri.isScheme('https') || uri.isScheme('http') ? uri : null;
   }
 }

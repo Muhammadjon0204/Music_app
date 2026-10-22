@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Online catalogs and streams. Debug/profile builds get it from their
+         own manifests; release builds need it here. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="AURA"
         android:name="${applicationName}"

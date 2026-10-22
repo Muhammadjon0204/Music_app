@@ -2,43 +2,75 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:music_app/audio/audio_engine.dart';
+import 'package:music_app/audio/audio_interruptions.dart';
 import 'package:music_app/audio/track_audio_resolver.dart';
 import 'package:music_app/core/error/app_failure.dart';
 import 'package:music_app/core/error/result.dart';
+import 'package:music_app/core/utils/cancellation.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/playback/playback_controller.dart';
 import 'package:music_app/domain/playback/playback_queue.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 
+/// Where the current track is in its life cycle. The published
+/// [PlaybackStatus] combines this with the user's intent and the engine's
+/// own state, so "playing" is only shown once the engine confirms it.
+enum _TrackPhase { none, loading, ready, completed, failed }
+
 /// The app's [PlaybackController]: queue rules from [PlaybackQueue], audio
 /// from an [AudioEngine] (just_audio, or the silent engine).
 ///
-/// Every load gets a token; results and completion events from a load that
-/// has since been superseded (e.g. by rapid "next" taps) are ignored.
+/// Every load gets a token and a [Cancellation]; results, completion events
+/// and errors from a load that has since been superseded (e.g. by rapid
+/// "next" taps) are ignored, and its pending network work is cancelled.
+///
+/// [interruptions] (calls, alarms, other apps, headphones unplugged) are
+/// handled here like Apple Music does: pause, then resume only if the
+/// system allows it and the user has not taken over in the meantime.
+///
+/// Nothing is retried automatically: after a failure, the next "play"
+/// retries once (resuming where the track stopped), "next" moves on.
 final class EnginePlaybackController implements PlaybackController {
   EnginePlaybackController({
     required AudioEngine engine,
     Random? random,
-    Result<AudioLocation> Function(Track track) resolver = resolveTrackAudio,
+    AudioResolver? resolver,
+    Stream<AudioInterruption>? interruptions,
   }) : _engine = engine,
        _random = random ?? Random(),
-       _resolve = resolver {
+       _resolve = resolver ?? TrackAudioResolver().call {
     _engineStates = engine.states.listen(_onEngineState);
+    _engineErrors = engine.errors.listen(_onEngineError);
     _enginePositions = engine.positions.listen(_onEnginePosition);
+    _interruptions = interruptions?.listen(
+      (event) => unawaited(_onInterruption(event)),
+    );
   }
+
+  /// Volume while another app speaks over the music (Android ducking).
+  static const duckedVolume = 0.3;
 
   final AudioEngine _engine;
   final Random _random;
-  final Result<AudioLocation> Function(Track) _resolve;
+  final AudioResolver _resolve;
 
   final _snapshots = StreamController<PlaybackSnapshot>.broadcast();
   final _positions = StreamController<Duration>.broadcast();
   late final StreamSubscription<AudioEngineState> _engineStates;
+  late final StreamSubscription<AudioEngineError> _engineErrors;
   late final StreamSubscription<Duration> _enginePositions;
+  StreamSubscription<AudioInterruption>? _interruptions;
 
   PlaybackQueue _queue = PlaybackQueue.empty;
   PlaybackRepeatMode _repeat = PlaybackRepeatMode.off;
-  PlaybackStatus _status = PlaybackStatus.idle;
+  _TrackPhase _phase = _TrackPhase.none;
+  AudioEngineState _engineState = const AudioEngineState(
+    phase: AudioEnginePhase.idle,
+    playing: false,
+  );
+
+  /// What the engine has open for the current track.
+  AudioLocation? _location;
   Duration? _duration;
   AppFailure? _failure;
   Duration _position = Duration.zero;
@@ -47,9 +79,14 @@ final class EnginePlaybackController implements PlaybackController {
   /// Whether the user wants sound: survives track changes.
   bool _wantsPlay = false;
 
-  /// True once the current track is loaded and ready in the engine.
-  bool _loaded = false;
+  /// Paused by an interruption while playing; resume when it ends.
+  bool _resumeAfterInterruption = false;
+
+  /// Where a failed track stopped, so a retry continues from there.
+  Duration? _resumeAt;
+
   int _loadToken = 0;
+  Cancellation? _loadCancellation;
   bool _disposed = false;
 
   @override
@@ -67,56 +104,55 @@ final class EnginePlaybackController implements PlaybackController {
   @override
   Future<void> setQueue(List<Track> tracks, {int startIndex = 0}) async {
     if (_disposed) return;
+    _resumeAfterInterruption = false;
+    _resumeAt = null;
     var queue = PlaybackQueue(tracks, startIndex: startIndex);
     if (_queue.isShuffled) queue = queue.shuffled(_random);
     _queue = queue;
     _wantsPlay = false;
     await _engine.pause();
     if (queue.isEmpty) {
-      _loadToken++;
-      _loaded = false;
-      _status = PlaybackStatus.idle;
+      _abandonLoad();
+      _phase = _TrackPhase.none;
       _duration = null;
       _failure = null;
       _setPosition(Duration.zero);
       _publish();
       return;
     }
-    await _loadCurrent(autoplay: false);
+    await _loadCurrent();
   }
 
   @override
   Future<void> play() async {
     if (_disposed || _queue.isEmpty) return;
+    _resumeAfterInterruption = false;
     _wantsPlay = true;
-    if (_status == PlaybackStatus.completed) {
-      // Playing after the queue ended starts it over.
-      _queue = _queue.jumpTo(0);
-      await _loadCurrent(autoplay: true);
-      return;
+    switch (_phase) {
+      case _TrackPhase.completed:
+        // Playing after the queue ended starts it over.
+        _queue = _queue.jumpTo(0);
+        _resumeAt = null;
+        await _loadCurrent();
+      case _TrackPhase.failed || _TrackPhase.none:
+        // Nothing usable loaded (e.g. the last load failed): try once more.
+        await _loadCurrent();
+      case _TrackPhase.loading:
+        // Plays when the load finishes.
+        _publish();
+      case _TrackPhase.ready:
+        _publish();
+        await _engine.play();
     }
-    if (!_loaded) {
-      // Nothing usable loaded yet (e.g. the last load failed): try again.
-      if (_status != PlaybackStatus.loading) {
-        await _loadCurrent(autoplay: true);
-      }
-      return;
-    }
-    _status = PlaybackStatus.playing;
-    _publish();
-    await _engine.play();
   }
 
   @override
   Future<void> pause() async {
     if (_disposed) return;
+    _resumeAfterInterruption = false;
     _wantsPlay = false;
     await _engine.pause();
-    if (_status == PlaybackStatus.playing ||
-        _status == PlaybackStatus.loading) {
-      _status = PlaybackStatus.paused;
-      _publish();
-    }
+    _publish();
   }
 
   @override
@@ -127,12 +163,15 @@ final class EnginePlaybackController implements PlaybackController {
 
   @override
   Future<void> seek(Duration position) async {
-    if (_disposed || !_loaded) return;
+    if (_disposed ||
+        (_phase != _TrackPhase.ready && _phase != _TrackPhase.completed)) {
+      return;
+    }
     var target = position.isNegative ? Duration.zero : position;
     final duration = _duration;
     if (duration != null && target > duration) target = duration;
-    if (_status == PlaybackStatus.completed && target < (duration ?? target)) {
-      _status = PlaybackStatus.paused;
+    if (_phase == _TrackPhase.completed && target < (duration ?? target)) {
+      _phase = _TrackPhase.ready;
       _publish();
     }
     _setPosition(target);
@@ -145,7 +184,8 @@ final class EnginePlaybackController implements PlaybackController {
     final next = _queue.next(_repeat, AdvanceReason.userSkipped);
     if (next == null) return;
     _queue = next;
-    await _loadCurrent(autoplay: _wantsPlay);
+    _resumeAt = null;
+    await _loadCurrent();
   }
 
   @override
@@ -157,7 +197,8 @@ final class EnginePlaybackController implements PlaybackController {
       return;
     }
     _queue = previous;
-    await _loadCurrent(autoplay: _wantsPlay);
+    _resumeAt = null;
+    await _loadCurrent();
   }
 
   /// Choosing a track from the queue starts playing it.
@@ -166,7 +207,8 @@ final class EnginePlaybackController implements PlaybackController {
     if (_disposed) return;
     _queue = _queue.jumpTo(index);
     _wantsPlay = true;
-    await _loadCurrent(autoplay: true);
+    _resumeAt = null;
+    await _loadCurrent();
   }
 
   @override
@@ -187,57 +229,70 @@ final class EnginePlaybackController implements PlaybackController {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-    _loadToken++;
+    _abandonLoad();
     // Not awaited: there is nothing to wait for, and awaiting a broadcast
     // subscription's cancel can stall under the test framework's fake clock.
     unawaited(_engineStates.cancel());
+    unawaited(_engineErrors.cancel());
     unawaited(_enginePositions.cancel());
+    unawaited(_interruptions?.cancel());
     await _engine.dispose();
     unawaited(_snapshots.close());
     unawaited(_positions.close());
   }
 
-  Future<void> _loadCurrent({required bool autoplay}) async {
-    final token = ++_loadToken;
+  /// Loads the current track; plays it if the user wants sound by the time
+  /// it is ready.
+  Future<void> _loadCurrent() async {
+    _abandonLoad();
+    final token = _loadToken;
+    final cancellation = _loadCancellation = Cancellation();
     final track = _queue.current!;
-    _loaded = false;
+    _phase = _TrackPhase.loading;
+    _location = null;
     _failure = null;
     _duration = track.duration;
-    _status = PlaybackStatus.loading;
     _setPosition(Duration.zero);
     _publish();
 
     final AudioLocation location;
-    switch (_resolve(track)) {
+    switch (await _resolve(track, cancellation)) {
       case Ok(:final value):
         location = value;
       case Err(:final failure):
+        if (!_isCurrent(token)) return;
         _fail(failure);
         return;
     }
+    if (!_isCurrent(token)) return;
+    _location = location;
 
     try {
       final duration = await _engine.load(
         location,
         expectedDuration: track.duration,
       );
-      if (token != _loadToken || _disposed) return;
-      _loaded = true;
+      if (!_isCurrent(token)) return;
+      _phase = _TrackPhase.ready;
       _duration = duration ?? track.duration;
-      if (autoplay) {
-        _status = PlaybackStatus.playing;
-        _publish();
-        await _engine.play();
-      } else {
-        _status = PlaybackStatus.paused;
-        _publish();
+      final resumeAt = _resumeAt;
+      _resumeAt = null;
+      if (resumeAt != null && resumeAt > Duration.zero) {
+        _setPosition(resumeAt);
+        await _engine.seek(resumeAt);
+        if (!_isCurrent(token)) return;
       }
+      _publish();
+      if (_wantsPlay) await _engine.play();
     } on AudioLoadInterrupted {
       return;
     } on AudioLoadException catch (e, stackTrace) {
-      if (token != _loadToken || _disposed) return;
+      if (!_isCurrent(token)) return;
       _fail(
-        UnsupportedMediaFailure(
+        _failureFor(
+          e.kind,
+          location,
+          duringLoad: true,
           debugMessage: e.detail,
           cause: e,
           stackTrace: stackTrace,
@@ -246,32 +301,157 @@ final class EnginePlaybackController implements PlaybackController {
     }
   }
 
-  /// Stops on a failed track and reports it; the user decides what next.
+  /// Makes any load in flight stale and cancels its network work.
+  void _abandonLoad() {
+    _loadToken++;
+    _loadCancellation?.cancel();
+    _loadCancellation = null;
+  }
+
+  bool _isCurrent(int token) => token == _loadToken && !_disposed;
+
+  /// Stops on a failed track and reports it; the user decides what next
+  /// (play retries once, next moves on). Never retried automatically.
   void _fail(AppFailure failure) {
+    if (_phase == _TrackPhase.ready && _position > Duration.zero) {
+      _resumeAt = _position;
+    }
     _failure = failure;
-    _loaded = false;
+    _phase = _TrackPhase.failed;
     _wantsPlay = false;
-    _status = PlaybackStatus.paused;
+    unawaited(_engine.pause());
     _publish();
   }
 
+  Future<void> _onInterruption(AudioInterruption event) async {
+    if (_disposed) return;
+    switch (event) {
+      case AudioInterruption.began:
+        if (!_wantsPlay) return;
+        await pause();
+        // Set after pause(), which clears it.
+        _resumeAfterInterruption = true;
+      case AudioInterruption.endedMayResume:
+        if (_resumeAfterInterruption) await play();
+      case AudioInterruption.endedNoResume:
+        _resumeAfterInterruption = false;
+      case AudioInterruption.beganDuck:
+        await _engine.setVolume(duckedVolume);
+      case AudioInterruption.endedDuck:
+        await _engine.setVolume(1);
+      case AudioInterruption.becameNoisy:
+        // Never resumes by itself: reconnecting headphones should not
+        // start the music.
+        if (_wantsPlay) await pause();
+    }
+  }
+
   void _onEngineState(AudioEngineState state) {
-    // Only completion drives the queue. Pauses from outside the app
-    // (calls, headphones) are handled with the audio session in Phase 8.
-    if (_disposed ||
-        !_loaded ||
-        state.phase != AudioEnginePhase.completed ||
-        _status != PlaybackStatus.playing) {
+    if (_disposed) return;
+    _engineState = state;
+    // Only events for a loaded track matter; during a load the engine still
+    // reports on the previous source.
+    if (_phase != _TrackPhase.ready) return;
+    if (state.phase == AudioEnginePhase.completed && _wantsPlay) {
+      unawaited(_onTrackCompleted());
       return;
     }
-    unawaited(_onTrackCompleted());
+    _publish();
+  }
+
+  void _onEngineError(AudioEngineError error) {
+    // Errors while loading arrive as AudioLoadException instead.
+    if (_disposed || _phase != _TrackPhase.ready) return;
+    _fail(
+      _failureFor(
+        error.kind,
+        _location,
+        duringLoad: false,
+        debugMessage: error.detail,
+        cause: error,
+      ),
+    );
+  }
+
+  /// The user-facing failure for an engine error. Unknown causes are not
+  /// guessed: a local file that will not open is reported as an unsupported
+  /// format (as before), anything else as a generic playback failure.
+  static AppFailure _failureFor(
+    AudioErrorKind kind,
+    AudioLocation? location, {
+    required bool duringLoad,
+    required String debugMessage,
+    Object? cause,
+    StackTrace? stackTrace,
+  }) {
+    final isStream = location is StreamAudio;
+    final where = isStream ? 'stream' : 'local';
+    final message = '$where: $debugMessage';
+    return switch (kind) {
+      AudioErrorKind.networkUnavailable => NetworkFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.timeout => TimeoutFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.notFound => NotFoundFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.fileMissing when isStream => NotFoundFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.fileMissing => FileAccessFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.accessDenied => AccessDeniedFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.rateLimited => RateLimitedFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.server => ServerFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.unsupportedFormat => UnsupportedMediaFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+      AudioErrorKind.unknown when duringLoad && !isStream =>
+        UnsupportedMediaFailure(
+          debugMessage: message,
+          cause: cause,
+          stackTrace: stackTrace,
+        ),
+      AudioErrorKind.unknown => PlaybackFailure(
+        debugMessage: message,
+        cause: cause,
+        stackTrace: stackTrace,
+      ),
+    };
   }
 
   Future<void> _onTrackCompleted() async {
     final next = _queue.next(_repeat, AdvanceReason.trackCompleted);
     if (next == null) {
       _wantsPlay = false;
-      _status = PlaybackStatus.completed;
+      _phase = _TrackPhase.completed;
       _setPosition(_duration ?? _position);
       _publish();
       await _engine.pause();
@@ -284,11 +464,11 @@ final class EnginePlaybackController implements PlaybackController {
       return;
     }
     _queue = next;
-    await _loadCurrent(autoplay: true);
+    await _loadCurrent();
   }
 
   void _onEnginePosition(Duration position) {
-    if (_loaded && _status != PlaybackStatus.completed) _setPosition(position);
+    if (_phase == _TrackPhase.ready) _setPosition(position);
   }
 
   void _setPosition(Duration value) {
@@ -296,17 +476,33 @@ final class EnginePlaybackController implements PlaybackController {
     if (!_disposed) _positions.add(value);
   }
 
+  PlaybackStatus get _status => switch (_phase) {
+    _TrackPhase.none => PlaybackStatus.idle,
+    _TrackPhase.loading => PlaybackStatus.loading,
+    _TrackPhase.completed => PlaybackStatus.completed,
+    _TrackPhase.failed => PlaybackStatus.failed,
+    _TrackPhase.ready when !_wantsPlay => PlaybackStatus.paused,
+    _TrackPhase.ready
+        when _engineState.playing &&
+            _engineState.phase == AudioEnginePhase.ready =>
+      PlaybackStatus.playing,
+    _TrackPhase.ready => PlaybackStatus.buffering,
+  };
+
   void _publish() {
     if (_disposed) return;
-    _snapshot = PlaybackSnapshot(
+    final snapshot = PlaybackSnapshot(
       queue: _queue.playOrder,
       currentIndex: _queue.isEmpty ? null : _queue.position,
       status: _status,
+      playWhenReady: _wantsPlay,
       shuffleEnabled: _queue.isShuffled,
       repeatMode: _repeat,
       duration: _duration,
       failure: _failure,
     );
-    _snapshots.add(_snapshot);
+    if (snapshot == _snapshot) return;
+    _snapshot = snapshot;
+    _snapshots.add(snapshot);
   }
 }

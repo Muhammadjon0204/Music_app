@@ -14,6 +14,14 @@ void main() {
       StorageFailure(debugMessage: secret),
       PlaybackFailure(debugMessage: secret),
       UnexpectedFailure(debugMessage: secret),
+      TimeoutFailure(debugMessage: secret),
+      ServerFailure(statusCode: 503, debugMessage: secret),
+      RateLimitedFailure(debugMessage: secret),
+      NotFoundFailure(debugMessage: secret),
+      AccessDeniedFailure(debugMessage: secret),
+      InvalidResponseFailure(debugMessage: secret),
+      FeatureUnavailableFailure(debugMessage: secret),
+      CancelledFailure(debugMessage: secret),
     ];
     for (final failure in failures) {
       final (title, message) = failureText(failure);
@@ -27,5 +35,20 @@ void main() {
     final (title, _) = failureText(StateError(secret));
     final (unexpectedTitle, _) = failureText(const UnexpectedFailure());
     expect(title, unexpectedTitle);
+  });
+
+  test('network failures are told apart for the user', () {
+    final texts = {
+      for (final failure in const <AppFailure>[
+        NetworkFailure(),
+        TimeoutFailure(),
+        ServerFailure(),
+        RateLimitedFailure(),
+        NotFoundFailure(),
+        AccessDeniedFailure(),
+      ])
+        failureText(failure).$1,
+    };
+    expect(texts, hasLength(6));
   });
 }

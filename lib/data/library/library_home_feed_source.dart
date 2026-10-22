@@ -7,22 +7,28 @@ import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/playlist.dart';
 
 /// Home content built from the user's library. While the library is empty
-/// it shows [whenEmpty] (labelled demo content) instead.
+/// it shows [whenEmpty] (labelled demo content) if given, else nothing.
 final class LibraryHomeFeedSource implements HomeFeedSource {
-  const LibraryHomeFeedSource({
-    required this._repository,
-    required this._whenEmpty,
-  });
+  const LibraryHomeFeedSource({required this._repository, this._whenEmpty});
 
   static const _carouselLimit = 10;
 
   final LibraryRepository _repository;
-  final HomeFeedSource _whenEmpty;
+  final HomeFeedSource? _whenEmpty;
 
   @override
   Future<Result<HomeFeed>> load() async {
     final library = _repository.current;
-    if (library.isEmpty) return _whenEmpty.load();
+    if (library.isEmpty) {
+      return _whenEmpty?.load() ??
+          Ok(
+            HomeFeed(
+              recentlyAdded: const [],
+              albums: const [],
+              playlists: const [],
+            ),
+          );
+    }
     return Ok(buildFeed(library));
   }
 

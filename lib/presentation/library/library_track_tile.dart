@@ -15,6 +15,7 @@ class LibraryTrackTile extends ConsumerWidget {
     required this.onPressed,
     this.onMore,
     this.missing = false,
+    this.unavailableNote,
     this.isCurrent = false,
   });
 
@@ -22,28 +23,37 @@ class LibraryTrackTile extends ConsumerWidget {
   final VoidCallback onPressed;
   final VoidCallback? onMore;
   final bool missing;
+
+  /// Why the track cannot play here (e.g. "Только в Audius"); dims the row
+  /// and replaces the subtitle, like a missing file.
+  final String? unavailableNote;
   final bool isCurrent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final duration = track.duration;
-    final subtitle = missing
-        ? AuraStrings.missingFile
-        : [
-            track.artistName ?? AuraStrings.unknownArtist,
-            if (duration != null) formatDuration(duration),
-          ].join(' · ');
+    final note = missing ? AuraStrings.missingFile : unavailableNote;
+    final subtitle =
+        note ??
+        [
+          track.artistName ?? AuraStrings.unknownArtist,
+          if (duration != null) formatDuration(duration),
+        ].join(' · ');
     final onMore = this.onMore;
 
     return Opacity(
-      opacity: missing ? 0.55 : 1,
+      opacity: note != null ? 0.55 : 1,
       child: AuraListTile(
         title: track.title,
         subtitle: subtitle,
         isActive: isCurrent,
         leading: AuraArtwork(
           size: AuraSizes.artworkListTile,
-          image: artworkImage(ref, track.artworkUri),
+          image: artworkImage(
+            ref,
+            track.artworkUri,
+            alternatives: track.artworkAlternatives,
+          ),
           placeholderSeed: track.title,
         ),
         trailing: onMore == null

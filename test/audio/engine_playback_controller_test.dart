@@ -192,23 +192,26 @@ void main() {
 
     Future<void> settle() => Future<void>.delayed(Duration.zero);
 
-    test('a track with no playable source fails without loading', () async {
-      final onlineOnly = Track(
-        id: const TrackId('online'),
-        title: 'Online',
-        sources: const [
-          ProviderTrackSource(
-            providerId: ProviderId('p'),
-            externalId: ExternalTrackId('1'),
-          ),
-        ],
-      );
-      await player.setQueue([onlineOnly]);
+    test(
+      'an online track without its provider fails without loading',
+      () async {
+        final onlineOnly = Track(
+          id: const TrackId('online'),
+          title: 'Online',
+          sources: const [
+            ProviderTrackSource(
+              providerId: ProviderId('p'),
+              externalId: ExternalTrackId('1'),
+            ),
+          ],
+        );
+        await player.setQueue([onlineOnly]);
 
-      expect(engine.loads, isEmpty);
-      expect(player.snapshot.failure, isA<UnsupportedMediaFailure>());
-      expect(player.snapshot.status, PlaybackStatus.paused);
-    });
+        expect(engine.loads, isEmpty);
+        expect(player.snapshot.failure, isA<FeatureUnavailableFailure>());
+        expect(player.snapshot.status, PlaybackStatus.failed);
+      },
+    );
 
     test(
       'a file that fails to load is reported; next track recovers',
@@ -243,6 +246,8 @@ void main() {
       engine.holdLoads = true;
 
       final skips = [for (var i = 0; i < 3; i++) player.skipToNext()];
+      // Resolution is asynchronous: let the surviving load reach the engine.
+      await settle();
       engine.finishLoad(const Duration(seconds: 4));
       await Future.wait(skips);
 
@@ -347,19 +352,24 @@ void main() {
     });
   });
 
-  test('ignores the playing flag reported by the engine', () async {
-    // External pauses (calls, unplugged headphones) are handled in Phase 8;
-    // until then, stale engine events must not flip the UI state.
-    final engine = FakeAudioEngine();
+  test('playing is shown only once the engine confirms it', () async {
+    final engine = FakeAudioEngine()..bufferOnPlay = true;
     final player = EnginePlaybackController(engine: engine);
     await player.setQueue(tracks(1));
     await player.play();
-    engine.emit(
-      const AudioEngineState(phase: AudioEnginePhase.ready, playing: false),
-    );
-    await Future<void>.delayed(Duration.zero);
-    expect(player.snapshot.status, PlaybackStatus.playing);
+    // Asked to play, but the engine is still buffering.
+    expect(player.snapshot.status, PlaybackStatus.buffering);
+    expect(player.snapshot.playWhenReady, isTrue);
+    expect(player.snapshot.isWaiting, isTrue);
+
     engine.emit(playing);
+    expect(player.snapshot.status, PlaybackStatus.playing);
+
+    // A stall mid-track shows as buffering again, not as silence.
+    engine.emit(
+      const AudioEngineState(phase: AudioEnginePhase.buffering, playing: true),
+    );
+    expect(player.snapshot.status, PlaybackStatus.buffering);
     await player.dispose();
   });
 }

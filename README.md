@@ -5,7 +5,19 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 7 — Local library.** Import your own audio files from the
+> Status: **Phase 11 — Audius.** Real online catalog through the official
+> Audius API: popular tracks on Home, search next to your library, real
+> covers (with mirror fallback), streaming through the same player, and a
+> link to each track's Audius page. No keys or secrets; Audius data is
+> cached for the session only, as its API terms require.
+> **Phase 10 — Provider foundation.** Async stream resolution, buffering
+> and mid-stream error states, typed network failures.
+> **Phase 8 — Background playback.** Music keeps playing in the
+> background and on the lock screen; Control Center, AirPods and headphone
+> buttons control it; calls and alarms pause and resume it; unplugging
+> headphones pauses it (built and unit-tested; not yet verified on a
+> device).
+> **Phase 7 — Local library.** Import your own audio files from the
 > Files app (copied into the app, deduplicated, tags and cover art read),
 > favorites, playlists, albums, artists, sorting and search; the library
 > survives restarts. Real playback via just_audio (iOS, Android, web, macOS);

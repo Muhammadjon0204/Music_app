@@ -40,7 +40,8 @@ class AppShell extends ConsumerWidget {
     final snapshot = ref.watch(playbackSnapshotProvider).value;
     final controller = ref.watch(playbackControllerProvider);
     final track = snapshot?.currentTrack;
-    final isPlaying = snapshot?.isPlaying ?? false;
+    // Follows intent, so "pause" works while a stream is still buffering.
+    final isPlaying = snapshot?.playWhenReady ?? false;
 
     return Scaffold(
       body: navigationShell,
@@ -57,6 +58,7 @@ class AppShell extends ConsumerWidget {
                 child: MiniPlayerBar(
                   track: track,
                   isPlaying: isPlaying,
+                  isWaiting: snapshot.isWaiting,
                   onTogglePlay: () => unawaited(
                     isPlaying ? controller.pause() : controller.play(),
                   ),

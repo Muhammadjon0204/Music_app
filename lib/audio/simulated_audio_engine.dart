@@ -25,6 +25,10 @@ final class SimulatedAudioEngine implements AudioEngine {
   @override
   Stream<AudioEngineState> get states => _states.stream;
 
+  /// The silent engine never fails after loading.
+  @override
+  Stream<AudioEngineError> get errors => const Stream.empty();
+
   @override
   Stream<Duration> get positions => _positions.stream;
 
@@ -76,6 +80,10 @@ final class SimulatedAudioEngine implements AudioEngine {
       if (_playing) _startTimer();
     }
   }
+
+  /// Nothing to make quieter; kept for the interface.
+  @override
+  Future<void> setVolume(double volume) async {}
 
   @override
   Future<void> dispose() async {
