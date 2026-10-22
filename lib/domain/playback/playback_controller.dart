@@ -13,6 +13,9 @@ abstract interface class PlaybackController {
 
   Stream<PlaybackSnapshot> get snapshots;
 
+  /// Current position within the current track.
+  Duration get position;
+
   /// High-frequency position updates, separate from [snapshots].
   Stream<Duration> get positions;
 
@@ -30,11 +33,12 @@ abstract interface class PlaybackController {
 
   Future<void> skipToPrevious();
 
+  /// Jumps to [index] in the play order ([PlaybackSnapshot.queue]).
   Future<void> skipToIndex(int index);
 
   Future<void> setShuffleEnabled(bool enabled);
 
-  Future<void> setRepeatMode(RepeatMode mode);
+  Future<void> setRepeatMode(PlaybackRepeatMode mode);
 
   Future<void> dispose();
 }

@@ -49,6 +49,28 @@ abstract final class AuraStrings {
 
   static const play = 'Воспроизвести';
   static const pause = 'Пауза';
+  static const nextTrack = 'Следующий трек';
+  static const previousTrack = 'Предыдущий трек';
+  static const shuffle = 'Перемешать';
+  static const repeatOff = 'Повтор: выключен';
+  static const repeatAll = 'Повтор: вся очередь';
+  static const repeatOne = 'Повтор: один трек';
+  static const openPlayer = 'Открыть плеер';
+  static const closePlayer = 'Свернуть плеер';
+  static const queue = 'Очередь';
+  static const nowPlaying = 'Сейчас играет';
+  static const upNext = 'Далее';
+  static const queueEnd = 'Больше треков в очереди нет';
+  static const nothingPlayingTitle = 'Ничего не играет';
+  static const nothingPlayingMessage = 'Выберите музыку, чтобы начать.';
+  static const demoPlayback = 'Демо · без звука';
+  static const demoPlaybackHint =
+      'Демо-плеер без звука: показывает интерфейс до подключения '
+      'аудиодвижка.';
+  static const playbackPosition = 'Позиция воспроизведения';
+  static String positionOf(String position, String total) =>
+      '$position из $total';
+  static String playPlaylist(String name) => 'Слушать «$name»';
 
   static const devGallery = 'Каталог компонентов (только для разработки)';
   static const back = 'Назад';

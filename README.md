@@ -5,8 +5,10 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 4 — Home and navigation.** Tabs (Home, Search, Library)
-> work; Home shows clearly labelled **demo data**. No audio playback yet.
+> Status: **Phase 5 — Player UI.** Tabs, Home, mini player, Now Playing
+> and the queue work. Home shows clearly labelled **demo data**, and the
+> player is a **silent demo player** ("Демо · без звука") until the audio
+> engine lands in Phase 6.
 > Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 > Design system: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).
 

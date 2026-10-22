@@ -27,6 +27,9 @@ class FakePlaybackController implements PlaybackController {
   Stream<PlaybackSnapshot> get snapshots => _updates.stream;
 
   @override
+  Duration get position => Duration.zero;
+
+  @override
   Stream<Duration> get positions => const Stream.empty();
 
   @override
@@ -57,7 +60,7 @@ class FakePlaybackController implements PlaybackController {
   Future<void> setShuffleEnabled(bool enabled) async {}
 
   @override
-  Future<void> setRepeatMode(RepeatMode mode) async {}
+  Future<void> setRepeatMode(PlaybackRepeatMode mode) async {}
 
   @override
   Future<void> dispose() => _updates.close();

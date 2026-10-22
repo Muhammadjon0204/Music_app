@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music_app/presentation/design_system/tokens/aura_colors.dart';
+import 'package:music_app/presentation/player/player_palette.dart';
 
 /// WCAG 2.x contrast ratio.
 double contrast(Color a, Color b) {
@@ -45,6 +46,39 @@ void main() {
 
   test('accent is visible as a UI element on background (3:1)', () {
     expect(contrast(c.accent, c.background), greaterThanOrEqualTo(nonTextAA));
+  });
+
+  group('Now Playing background keeps text readable for every artwork', () {
+    for (final artwork in c.artworkGradients) {
+      final background = nowPlayingBackground(artwork, c);
+
+      test('title, artist and times over $artwork', () {
+        // Text starts below the middle stop, which is the lightest point it
+        // can sit on.
+        for (final color in [c.textPrimary, c.textSecondary, c.textTertiary]) {
+          expect(
+            contrast(color, background[1]),
+            greaterThanOrEqualTo(textAA),
+            reason: '$color',
+          );
+        }
+      });
+
+      test('demo chip on the tinted top over $artwork', () {
+        final chip = Color.alphaBlend(
+          c.background.withValues(alpha: nowPlayingLabelBackdropAlpha),
+          background[0],
+        );
+        expect(contrast(c.accentText, chip), greaterThanOrEqualTo(textAA));
+      });
+
+      test('close button on the tinted top over $artwork', () {
+        expect(
+          contrast(c.textPrimary, background[0]),
+          greaterThanOrEqualTo(nonTextAA),
+        );
+      });
+    }
   });
 
   // The featured banner puts text over an artwork gradient with a dark scrim

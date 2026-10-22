@@ -4,20 +4,23 @@ import 'package:music_app/domain/music/track.dart';
 
 enum PlaybackStatus { idle, loading, playing, paused, completed }
 
-enum RepeatMode { off, all, one }
+enum PlaybackRepeatMode { off, all, one }
 
 /// Immutable player state, excluding playback position.
 ///
 /// Position changes many times per second, so it is published on a separate
 /// stream (see PlaybackController.positions) to avoid rebuilding the whole
 /// player UI on every tick.
+///
+/// [queue] is in play order (shuffled when shuffle is on), which is what
+/// the queue screen shows.
 final class PlaybackSnapshot {
   PlaybackSnapshot({
     required List<Track> queue,
     this.currentIndex,
     this.status = PlaybackStatus.idle,
     this.shuffleEnabled = false,
-    this.repeatMode = RepeatMode.off,
+    this.repeatMode = PlaybackRepeatMode.off,
     this.duration,
     this.failure,
   }) : queue = List.unmodifiable(queue) {
@@ -33,7 +36,7 @@ final class PlaybackSnapshot {
   final int? currentIndex;
   final PlaybackStatus status;
   final bool shuffleEnabled;
-  final RepeatMode repeatMode;
+  final PlaybackRepeatMode repeatMode;
 
   /// Duration reported by the audio engine; `null` until known.
   final Duration? duration;
@@ -44,6 +47,15 @@ final class PlaybackSnapshot {
   Track? get currentTrack {
     final index = currentIndex;
     return index == null ? null : queue[index];
+  }
+
+  bool get isPlaying => status == PlaybackStatus.playing;
+
+  /// Whether "next" leads somewhere (at the end only when repeating).
+  bool get hasNext {
+    final index = currentIndex;
+    if (index == null) return false;
+    return index < queue.length - 1 || repeatMode != PlaybackRepeatMode.off;
   }
 
   @override

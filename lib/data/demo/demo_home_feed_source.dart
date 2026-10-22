@@ -1,4 +1,5 @@
 import 'package:music_app/core/error/result.dart';
+import 'package:music_app/data/demo/demo_catalog.dart';
 import 'package:music_app/domain/home/home_feed.dart';
 import 'package:music_app/domain/music/album.dart';
 import 'package:music_app/domain/music/ids.dart';
@@ -17,7 +18,12 @@ final class DemoHomeFeedSource implements HomeFeedSource {
     return Ok(
       HomeFeed(
         isDemo: true,
-        featured: _playlist('featured', 'Хиты дня', 100),
+        featured: Playlist(
+          id: const PlaylistId('demo-playlist-featured'),
+          name: 'Хиты дня',
+          trackIds: [for (final track in DemoCatalog.hits) track.id],
+        ),
+        featuredTracks: DemoCatalog.hits,
         recentlyPlayed: [
           _album('1', 'Ночные огни', 'Aurora Lines', 2024),
           _album('2', 'Неоновый дождь', 'Midnight Static', 2023),

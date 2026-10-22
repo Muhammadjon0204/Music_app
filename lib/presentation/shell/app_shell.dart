@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
-import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/player/mini_player_bar.dart';
+import 'package:music_app/presentation/player/player_progress.dart';
 
 /// Tabs with independent navigation stacks, plus the mini player slot.
 class AppShell extends ConsumerWidget {
@@ -39,7 +40,7 @@ class AppShell extends ConsumerWidget {
     final snapshot = ref.watch(playbackSnapshotProvider).value;
     final controller = ref.watch(playbackControllerProvider);
     final track = snapshot?.currentTrack;
-    final isPlaying = snapshot?.status == PlaybackStatus.playing;
+    final isPlaying = snapshot?.isPlaying ?? false;
 
     return Scaffold(
       body: navigationShell,
@@ -49,18 +50,23 @@ class AppShell extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (track != null)
+            if (track != null && snapshot != null && controller != null)
               SafeArea(
                 top: false,
                 bottom: false,
                 child: MiniPlayerBar(
                   track: track,
                   isPlaying: isPlaying,
-                  onTogglePlay: controller == null
-                      ? null
-                      : () => unawaited(
-                          isPlaying ? controller.pause() : controller.play(),
-                        ),
+                  onTogglePlay: () => unawaited(
+                    isPlaying ? controller.pause() : controller.play(),
+                  ),
+                  onNext: snapshot.hasNext
+                      ? () => unawaited(controller.skipToNext())
+                      : null,
+                  onOpen: () => unawaited(context.push(AppRoutes.nowPlaying)),
+                  progress: MiniPlayerProgress(
+                    duration: snapshot.duration ?? track.duration,
+                  ),
                 ),
               ),
             AuraTabBar(

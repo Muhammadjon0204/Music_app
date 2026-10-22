@@ -18,7 +18,7 @@ void main() {
 
     expect(find.text('Демо-данные'), findsOneWidget);
     expect(find.text('Хиты дня'), findsOneWidget);
-    expect(find.text('Плейлист · 100 треков'), findsOneWidget);
+    expect(find.text('Плейлист · 12 треков'), findsOneWidget);
     expect(find.text('Недавно прослушанное'), findsOneWidget);
   });
 

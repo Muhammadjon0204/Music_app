@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app/application/home/home_feed_provider.dart';
 import 'package:music_app/application/infrastructure_providers.dart';
+import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/domain/home/home_feed.dart';
 import 'package:music_app/domain/music/album.dart';
 import 'package:music_app/domain/music/playlist.dart';
@@ -41,7 +42,19 @@ class HomeScreen extends ConsumerWidget {
         ),
       ];
     } else if (value != null) {
-      body = [SliverList.list(children: _sections(value))];
+      final controller = ref.watch(playbackControllerProvider);
+      final tracks = value.featuredTracks;
+      final onPlayFeatured = controller == null || tracks.isEmpty
+          ? null
+          : () async {
+              await controller.setQueue(tracks);
+              await controller.play();
+            };
+      body = [
+        SliverList.list(
+          children: _sections(value, onPlayFeatured: onPlayFeatured),
+        ),
+      ];
     } else if (error != null && !feed.isLoading) {
       final (title, message) = failureText(error);
       body = [
@@ -100,7 +113,7 @@ class HomeScreen extends ConsumerWidget {
 
   static const _maxCarouselItems = 10;
 
-  List<Widget> _sections(HomeFeed feed) {
+  List<Widget> _sections(HomeFeed feed, {VoidCallback? onPlayFeatured}) {
     Widget albumCard(Album album) => AuraMediaCard(
       title: album.title,
       subtitle: album.artistName ?? AuraStrings.unknownArtist,
@@ -119,7 +132,7 @@ class HomeScreen extends ConsumerWidget {
             AuraSpacing.screenHorizontal,
             0,
           ),
-          child: _FeaturedBanner(playlist: featured),
+          child: _FeaturedBanner(playlist: featured, onPlay: onPlayFeatured),
         ),
       if (feed.recentlyPlayed.isNotEmpty)
         _Carousel(
@@ -234,9 +247,12 @@ class _DemoBadge extends StatelessWidget {
 }
 
 class _FeaturedBanner extends StatelessWidget {
-  const _FeaturedBanner({required this.playlist});
+  const _FeaturedBanner({required this.playlist, required this.onPlay});
 
   final Playlist playlist;
+
+  /// Null hides the play button (no player or no playable tracks).
+  final VoidCallback? onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -271,25 +287,43 @@ class _FeaturedBanner extends StatelessWidget {
               alignment: Alignment.bottomLeft,
               child: Padding(
                 padding: const EdgeInsets.all(AuraSpacing.lg),
-                child: MergeSemantics(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        playlist.name,
-                        style: text.title1,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: MergeSemantics(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              playlist.name,
+                              style: text.title1,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: AuraSpacing.xxs),
+                            Text(
+                              '${AuraStrings.playlist} · '
+                              '${AuraStrings.trackCount(playlist.trackIds.length)}',
+                              style: text.subhead.copyWith(
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: AuraSpacing.xxs),
-                      Text(
-                        '${AuraStrings.playlist} · '
-                        '${AuraStrings.trackCount(playlist.trackIds.length)}',
-                        style: text.subhead.copyWith(color: colors.textPrimary),
+                    ),
+                    if (onPlay case final onPlay?) ...[
+                      const SizedBox(width: AuraSpacing.md),
+                      AuraIconButton.filled(
+                        icon: CupertinoIcons.play_fill,
+                        semanticLabel: AuraStrings.playPlaylist(playlist.name),
+                        diameter: 52,
+                        onPressed: onPlay,
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),

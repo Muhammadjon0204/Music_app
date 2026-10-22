@@ -8,7 +8,10 @@ import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/home/home_screen.dart';
+import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/player/mini_player_bar.dart';
+import 'package:music_app/presentation/player/now_playing_screen.dart';
+import 'package:music_app/presentation/player/queue_screen.dart';
 
 import '../helpers/aura_app_harness.dart';
 import '../helpers/fakes.dart';
@@ -17,7 +20,8 @@ Finder tabLabel(String label) =>
     find.descendant(of: find.byType(AuraTabBar), matching: find.text(label));
 
 /// Every device × every iOS text size, with the mini player showing a very
-/// long title. Any overflow or exception fails the test.
+/// long title, through every tab, Now Playing and the queue. Any overflow
+/// or exception fails the test.
 void main() {
   final longTrack = Track(
     id: const TrackId('long'),
@@ -103,6 +107,45 @@ void main() {
         await tester.tap(tabLabel('Библиотека'));
         await tester.pumpAndSettle();
         expect(find.text('Библиотека пуста'), findsOneWidget);
+
+        // Now Playing: open from the mini player, scroll to the bottom.
+        await tester.tap(artwork);
+        await tester.pumpAndSettle();
+        expect(find.byType(NowPlayingScreen), findsOneWidget);
+        final queueButton = find.text(AuraStrings.queue);
+        await tester.scrollUntilVisible(
+          queueButton,
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byType(NowPlayingScreen),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+
+        // Queue.
+        await tester.tap(queueButton);
+        await tester.pumpAndSettle();
+        expect(find.byType(QueueScreen), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text(AuraStrings.queueEnd),
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byType(QueueScreen),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        // The back button is pinned, so it is reachable even after scrolling.
+        await tester.tap(
+          find.byWidgetPredicate(
+            (w) => w is AuraIconButton && w.semanticLabel == AuraStrings.back,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(QueueScreen), findsNothing);
       });
     }
   }

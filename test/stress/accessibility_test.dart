@@ -9,6 +9,9 @@ import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/player/mini_player_bar.dart';
+import 'package:music_app/presentation/player/now_playing_screen.dart';
+import 'package:music_app/presentation/player/queue_screen.dart';
 
 import '../helpers/aura_app_harness.dart';
 import '../helpers/fakes.dart';
@@ -64,6 +67,28 @@ void main() {
       handle.dispose();
     });
   }
+
+  testWidgets('Now Playing and the queue meet the same guidelines', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pumpWithPlayer(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(MiniPlayerBar),
+        matching: find.byType(AuraArtwork),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(NowPlayingScreen), findsOneWidget);
+    await expectGuidelines(tester);
+
+    await tester.tap(find.text(AuraStrings.queue));
+    await tester.pumpAndSettle();
+    expect(find.byType(QueueScreen), findsOneWidget);
+    await expectGuidelines(tester);
+    handle.dispose();
+  });
 
   testWidgets('component gallery meets the guidelines along its full length', (
     tester,
