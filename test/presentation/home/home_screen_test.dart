@@ -17,8 +17,8 @@ void main() {
     await pumpAuraApp(tester);
 
     expect(find.text('Демо-данные'), findsOneWidget);
-    expect(find.text('Хиты дня'), findsOneWidget);
-    expect(find.text('Плейлист · 12 треков'), findsOneWidget);
+    expect(find.text('Демо-тоны'), findsOneWidget);
+    expect(find.text('Плейлист · 4 трека'), findsOneWidget);
     expect(find.text('Недавно прослушанное'), findsOneWidget);
   });
 
@@ -67,7 +67,7 @@ void main() {
     await tester.pump();
 
     expect(source.calls, 2);
-    expect(find.text('Хиты дня'), findsOneWidget);
+    expect(find.text('Демо-тоны'), findsOneWidget);
   });
 
   testWidgets('an empty feed shows the empty state without demo label', (

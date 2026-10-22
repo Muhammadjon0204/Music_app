@@ -63,10 +63,10 @@ abstract final class AuraStrings {
   static const queueEnd = 'Больше треков в очереди нет';
   static const nothingPlayingTitle = 'Ничего не играет';
   static const nothingPlayingMessage = 'Выберите музыку, чтобы начать.';
-  static const demoPlayback = 'Демо · без звука';
-  static const demoPlaybackHint =
-      'Демо-плеер без звука: показывает интерфейс до подключения '
-      'аудиодвижка.';
+  static const silentPlayback = 'Без звука';
+  static const silentPlaybackHint =
+      'Без звука: на этой платформе нет аудиодвижка, плеер только '
+      'показывает интерфейс.';
   static const playbackPosition = 'Позиция воспроизведения';
   static String positionOf(String position, String total) =>
       '$position из $total';

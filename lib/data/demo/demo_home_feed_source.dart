@@ -7,9 +7,10 @@ import 'package:music_app/domain/music/playlist.dart';
 
 /// DEMO DATA — sample Home content for UI development only.
 ///
-/// All titles and artists are fictional, there is no artwork, and the feed is
-/// flagged [HomeFeed.isDemo] so the UI labels it. To be replaced by the
-/// user's real library in Phase 7.
+/// Album and playlist titles are fictional and not playable; the featured
+/// playlist plays the generated demo tones. There is no artwork, and the
+/// feed is flagged [HomeFeed.isDemo] so the UI labels it. To be replaced by
+/// the user's real library in Phase 7.
 final class DemoHomeFeedSource implements HomeFeedSource {
   const DemoHomeFeedSource();
 
@@ -20,10 +21,10 @@ final class DemoHomeFeedSource implements HomeFeedSource {
         isDemo: true,
         featured: Playlist(
           id: const PlaylistId('demo-playlist-featured'),
-          name: 'Хиты дня',
-          trackIds: [for (final track in DemoCatalog.hits) track.id],
+          name: 'Демо-тоны',
+          trackIds: [for (final track in DemoCatalog.tones) track.id],
         ),
-        featuredTracks: DemoCatalog.hits,
+        featuredTracks: DemoCatalog.tones,
         recentlyPlayed: [
           _album('1', 'Ночные огни', 'Aurora Lines', 2024),
           _album('2', 'Неоновый дождь', 'Midnight Static', 2023),

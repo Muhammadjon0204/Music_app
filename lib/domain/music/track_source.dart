@@ -22,6 +22,21 @@ final class LocalFileSource extends TrackSource {
   int get hashCode => Object.hash(LocalFileSource, fileReference);
 }
 
+/// Audio shipped inside the app bundle (sample content). [assetPath] is
+/// the asset key, e.g. `assets/demo_audio/tone_1.wav`.
+final class BundledAudioSource extends TrackSource {
+  const BundledAudioSource(this.assetPath);
+
+  final String assetPath;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BundledAudioSource && other.assetPath == assetPath;
+
+  @override
+  int get hashCode => Object.hash(BundledAudioSource, assetPath);
+}
+
 /// A track in an online provider's catalog.
 ///
 /// Holds no stream URL on purpose: provider URLs may be temporary or signed,

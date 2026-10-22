@@ -10,7 +10,8 @@ import 'package:music_app/app/router.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/core/error/app_failure.dart';
 import 'package:music_app/data/demo/demo_catalog.dart';
-import 'package:music_app/data/demo/demo_playback_controller.dart';
+import 'package:music_app/audio/engine_playback_controller.dart';
+import 'package:music_app/audio/simulated_audio_engine.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
@@ -24,7 +25,7 @@ import 'package:music_app/presentation/player/queue_screen.dart';
 import '../../helpers/aura_app_harness.dart';
 import '../../helpers/fakes.dart';
 
-final hits = DemoCatalog.hits;
+final hits = DemoCatalog.tones;
 const sheetTime = Duration(milliseconds: 600);
 
 Finder inNowPlaying(Finder finder) =>
@@ -37,17 +38,20 @@ Finder iconButton(String label) => find.byWidgetPredicate(
 Finder toggle(bool Function(AuraToggleButton) test) =>
     find.byWidgetPredicate((w) => w is AuraToggleButton && test(w));
 
-Future<DemoPlaybackController> pumpWithPlayer(
+Future<EnginePlaybackController> pumpWithPlayer(
   WidgetTester tester, {
-  bool isDemo = true,
+  bool isSilent = true,
   List<Override> extra = const [],
 }) async {
-  final player = DemoPlaybackController(random: Random(1));
+  final player = EnginePlaybackController(
+    engine: SimulatedAudioEngine(),
+    random: Random(1),
+  );
   await pumpAuraApp(
     tester,
     overrides: [
       playbackControllerProvider.overrideWithValue(player),
-      isDemoPlaybackProvider.overrideWithValue(isDemo),
+      isSilentPlaybackProvider.overrideWithValue(isSilent),
       ...extra,
     ],
   );
@@ -57,7 +61,7 @@ Future<DemoPlaybackController> pumpWithPlayer(
 /// Loads the demo queue paused, so animations can settle.
 Future<void> loadHits(
   WidgetTester tester,
-  DemoPlaybackController player, {
+  EnginePlaybackController player, {
   int startIndex = 0,
 }) async {
   await player.setQueue(hits, startIndex: startIndex);
@@ -79,7 +83,7 @@ void main() {
   testWidgets('banner play starts the featured playlist', (tester) async {
     final player = await pumpWithPlayer(tester);
 
-    await tester.tap(iconButton(AuraStrings.playPlaylist('Хиты дня')));
+    await tester.tap(iconButton(AuraStrings.playPlaylist('Демо-тоны')));
     await tester.pump();
 
     expect(player.snapshot.currentTrack, hits.first);
@@ -99,7 +103,7 @@ void main() {
     tester,
   ) async {
     await pumpAuraApp(tester);
-    expect(iconButton(AuraStrings.playPlaylist('Хиты дня')), findsNothing);
+    expect(iconButton(AuraStrings.playPlaylist('Демо-тоны')), findsNothing);
   });
 
   testWidgets('mini player opens Now Playing; the chevron closes it', (
@@ -111,7 +115,7 @@ void main() {
     await openNowPlaying(tester);
     expect(find.byType(NowPlayingScreen), findsOneWidget);
     expect(inNowPlaying(find.text(hits.first.title)), findsOneWidget);
-    expect(find.text(AuraStrings.demoPlayback), findsOneWidget);
+    expect(find.text(AuraStrings.silentPlayback), findsOneWidget);
 
     await tester.tap(iconButton(AuraStrings.closePlayer));
     await tester.pump();
@@ -121,12 +125,12 @@ void main() {
     await player.dispose();
   });
 
-  testWidgets('a real (non-demo) player shows no demo label', (tester) async {
-    final player = await pumpWithPlayer(tester, isDemo: false);
+  testWidgets('a player with real audio shows no silent label', (tester) async {
+    final player = await pumpWithPlayer(tester, isSilent: false);
     await loadHits(tester, player);
     await openNowPlaying(tester);
 
-    expect(find.text(AuraStrings.demoPlayback), findsNothing);
+    expect(find.text(AuraStrings.silentPlayback), findsNothing);
     await player.dispose();
   });
 
@@ -253,9 +257,9 @@ void main() {
     await player.pause();
     await tester.pump();
 
-    // First demo track is 3:41.
+    // Demo tones are 0:12 long.
     expect(inNowPlaying(find.text('0:02')), findsOneWidget);
-    expect(inNowPlaying(find.text('-3:39')), findsOneWidget);
+    expect(inNowPlaying(find.text('-0:10')), findsOneWidget);
     await player.dispose();
   });
 
@@ -293,7 +297,7 @@ void main() {
     final node = tester.getSemantics(
       find.bySemanticsLabel(AuraStrings.playbackPosition),
     );
-    expect(node.value, '0:00 из 3:41');
+    expect(node.value, '0:00 из 0:12');
 
     node.owner!.performAction(node.id, SemanticsAction.increase);
     await tester.pump();
@@ -320,14 +324,14 @@ void main() {
     expect(find.text(AuraStrings.nowPlaying), findsOneWidget);
     expect(find.text(AuraStrings.upNext), findsOneWidget);
 
-    await tester.tap(find.text(hits[6].title));
+    await tester.tap(find.text(hits[2].title));
     await tester.pump();
-    expect(player.snapshot.currentTrack, hits[6]);
+    expect(player.snapshot.currentTrack, hits[2]);
 
     await tester.tap(iconButton(AuraStrings.back));
     await tester.pump();
     await tester.pump(sheetTime);
-    expect(inNowPlaying(find.text(hits[6].title)), findsOneWidget);
+    expect(inNowPlaying(find.text(hits[2].title)), findsOneWidget);
     await player.dispose();
   });
 

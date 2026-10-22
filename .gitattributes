@@ -13,3 +13,6 @@
 *.ttf binary
 *.otf binary
 *.jar binary
+*.wav binary
+*.mp3 binary
+*.m4a binary

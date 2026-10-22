@@ -6,9 +6,9 @@ import 'package:music_app/domain/playback/playback_snapshot.dart';
 /// UI stays hidden rather than pretending to play.
 final playbackControllerProvider = Provider<PlaybackController?>((ref) => null);
 
-/// True when the bound controller is the silent demo player, so the UI can
-/// say so.
-final isDemoPlaybackProvider = Provider<bool>((ref) => false);
+/// True when playback runs on the silent engine (platforms without an audio
+/// plugin), so the UI can say there is no sound.
+final isSilentPlaybackProvider = Provider<bool>((ref) => false);
 
 /// Current player state: the latest snapshot first, then every update.
 final playbackSnapshotProvider = StreamProvider<PlaybackSnapshot>((ref) {

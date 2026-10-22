@@ -39,6 +39,16 @@ void main() {
       'package:music_app/audio/',
       'package:music_app/integrations/',
     ],
+    // Audio playback: implements domain contracts over plugins, no UI.
+    'lib/audio': [
+      'package:flutter/material.dart',
+      'package:flutter/cupertino.dart',
+      'package:flutter/widgets.dart',
+      'package:music_app/app/',
+      'package:music_app/application/',
+      'package:music_app/presentation/',
+      'package:music_app/data/',
+    ],
     // Implementations of domain contracts.
     'lib/data': [
       'package:flutter/material.dart',

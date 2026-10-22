@@ -5,10 +5,10 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 5 — Player UI.** Tabs, Home, mini player, Now Playing
-> and the queue work. Home shows clearly labelled **demo data**, and the
-> player is a **silent demo player** ("Демо · без звука") until the audio
-> engine lands in Phase 6.
+> Status: **Phase 6 — Local audio engine.** Real playback via just_audio
+> (iOS, Android, web, macOS) of four generated demo tones; Home shows
+> clearly labelled **demo data**. On Windows/Linux the player runs silently
+> and says so. Importing your own music comes in Phase 7.
 > Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 > Design system: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).
 
@@ -46,6 +46,13 @@ iOS (requires a Mac with Xcode):
 
 ```bash
 flutter run -d ios
+```
+
+On Windows, Flutter needs **Developer Mode** (symlink support) to build
+apps that use plugins such as just_audio:
+
+```bash
+start ms-settings:developers
 ```
 
 Web and Windows are development stand-ins only. iOS-specific behaviour

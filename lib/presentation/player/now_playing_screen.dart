@@ -28,7 +28,7 @@ class NowPlayingScreen extends ConsumerWidget {
     final snapshot =
         ref.watch(playbackSnapshotProvider).value ?? PlaybackSnapshot.initial;
     final controller = ref.watch(playbackControllerProvider);
-    final isDemo = ref.watch(isDemoPlaybackProvider);
+    final isSilent = ref.watch(isSilentPlaybackProvider);
     final track = snapshot.currentTrack;
 
     void close() {
@@ -44,7 +44,7 @@ class NowPlayingScreen extends ConsumerWidget {
         body: SafeArea(
           child: Column(
             children: [
-              _TopBar(onClose: close, isDemo: false),
+              _TopBar(onClose: close, isSilent: false),
               const Expanded(
                 child: AuraEmptyState(
                   icon: CupertinoIcons.music_note,
@@ -87,7 +87,7 @@ class NowPlayingScreen extends ConsumerWidget {
               builder: (context, constraints) {
                 final landscape =
                     constraints.maxWidth > constraints.maxHeight * 1.2;
-                final topBar = _TopBar(onClose: close, isDemo: isDemo);
+                final topBar = _TopBar(onClose: close, isSilent: isSilent);
 
                 if (landscape) {
                   final artSize = math.max(
@@ -172,10 +172,10 @@ class NowPlayingScreen extends ConsumerWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose, required this.isDemo});
+  const _TopBar({required this.onClose, required this.isSilent});
 
   final VoidCallback onClose;
-  final bool isDemo;
+  final bool isSilent;
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +188,7 @@ class _TopBar extends StatelessWidget {
             semanticLabel: AuraStrings.closePlayer,
             onPressed: onClose,
           ),
-          Expanded(child: Center(child: isDemo ? const _DemoChip() : null)),
+          Expanded(child: Center(child: isSilent ? const _SilentChip() : null)),
           const SizedBox(width: AuraSizes.minTouchTarget),
         ],
       ),
@@ -196,14 +196,14 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _DemoChip extends StatelessWidget {
-  const _DemoChip();
+class _SilentChip extends StatelessWidget {
+  const _SilentChip();
 
   @override
   Widget build(BuildContext context) {
     final colors = context.auraColors;
     return Semantics(
-      label: AuraStrings.demoPlaybackHint,
+      label: AuraStrings.silentPlaybackHint,
       child: ExcludeSemantics(
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -218,7 +218,7 @@ class _DemoChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(AuraRadii.pill),
           ),
           child: Text(
-            AuraStrings.demoPlayback,
+            AuraStrings.silentPlayback,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.auraText.caption.copyWith(
