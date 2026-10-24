@@ -163,6 +163,12 @@ abstract final class AuraStrings {
   static const queue = 'Очередь';
   static const nowPlaying = 'Сейчас играет';
   static const upNext = 'Далее';
+  static const removeFromQueue = 'Убрать из очереди';
+  static const reorderInQueue = 'Перетащите, чтобы изменить порядок';
+  static const moveUp = 'Переместить выше';
+  static const moveDown = 'Переместить ниже';
+  static const playNext = 'Играть следующим';
+  static const playLast = 'В конец очереди';
   static const queueEnd = 'Больше треков в очереди нет';
   static const nothingPlayingTitle = 'Ничего не играет';
   static const nothingPlayingMessage = 'Выберите музыку, чтобы начать.';

@@ -102,6 +102,101 @@ final class PlaybackQueue {
     return _at(playPosition);
   }
 
+  /// Puts [items] right after the current track ("Play Next"). In the
+  /// original order they also follow the current track, so turning shuffle
+  /// off keeps them next.
+  PlaybackQueue insertNext(List<Track> items) {
+    if (items.isEmpty) return this;
+    if (isEmpty) return PlaybackQueue(items);
+    final after = order[position] + 1;
+    final k = items.length;
+    final shifted = [for (final i in order) i >= after ? i + k : i];
+    return PlaybackQueue._(
+      List.unmodifiable([
+        ...tracks.sublist(0, after),
+        ...items,
+        ...tracks.sublist(after),
+      ]),
+      List.unmodifiable([
+        ...shifted.sublist(0, position + 1),
+        for (var j = 0; j < k; j++) after + j,
+        ...shifted.sublist(position + 1),
+      ]),
+      position,
+      isShuffled: isShuffled,
+    );
+  }
+
+  /// Adds [items] at the end ("Play Last"), also when shuffled.
+  PlaybackQueue append(List<Track> items) {
+    if (items.isEmpty) return this;
+    if (isEmpty) return PlaybackQueue(items);
+    final start = tracks.length;
+    return PlaybackQueue._(
+      List.unmodifiable([...tracks, ...items]),
+      List.unmodifiable([
+        ...order,
+        for (var j = 0; j < items.length; j++) start + j,
+      ]),
+      position,
+      isShuffled: isShuffled,
+    );
+  }
+
+  /// Removes the track at [playPosition]. The current track cannot be
+  /// removed here (the player must move off it first).
+  PlaybackQueue removeAt(int playPosition) {
+    RangeError.checkValidIndex(playPosition, order, 'playPosition');
+    if (playPosition == position) {
+      throw StateError('The current track cannot be removed');
+    }
+    final removed = order[playPosition];
+    return PlaybackQueue._(
+      List.unmodifiable([...tracks]..removeAt(removed)),
+      List.unmodifiable([
+        for (var p = 0; p < order.length; p++)
+          if (p != playPosition) order[p] > removed ? order[p] - 1 : order[p],
+      ]),
+      playPosition < position ? position - 1 : position,
+      isShuffled: isShuffled,
+    );
+  }
+
+  /// Moves the track at play position [from] to [to]; the current track
+  /// stays current wherever it ends up. Unshuffled, the original order
+  /// changes too, so the new order survives shuffle on/off.
+  PlaybackQueue move(int from, int to) {
+    RangeError.checkValidIndex(from, order, 'from');
+    RangeError.checkValidIndex(to, order, 'to');
+    if (from == to) return this;
+    int follow(int p) {
+      if (p == from) return to;
+      if (from < p && p <= to) return p - 1;
+      if (to <= p && p < from) return p + 1;
+      return p;
+    }
+
+    final newPosition = follow(position);
+    if (!isShuffled) {
+      final reordered = [...tracks];
+      reordered.insert(to, reordered.removeAt(from));
+      return PlaybackQueue._(
+        List.unmodifiable(reordered),
+        order,
+        newPosition,
+        isShuffled: false,
+      );
+    }
+    final reordered = [...order];
+    reordered.insert(to, reordered.removeAt(from));
+    return PlaybackQueue._(
+      tracks,
+      List.unmodifiable(reordered),
+      newPosition,
+      isShuffled: true,
+    );
+  }
+
   PlaybackQueue _at(int newPosition) =>
       PlaybackQueue._(tracks, order, newPosition, isShuffled: isShuffled);
 

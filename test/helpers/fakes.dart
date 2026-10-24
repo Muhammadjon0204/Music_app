@@ -60,10 +60,33 @@ class FakePlaybackController implements PlaybackController {
   Future<void> seek(Duration position) async => seeks.add(position);
 
   @override
-  Future<void> setQueue(List<Track> tracks, {int startIndex = 0}) async {
+  Future<void> setQueue(
+    List<Track> tracks, {
+    int startIndex = 0,
+    bool play = false,
+  }) async {
     lastQueue = tracks;
     lastStartIndex = startIndex;
+    if (play) playCalls++;
   }
+
+  final queueEdits = <String>[];
+
+  @override
+  Future<void> playNext(List<Track> tracks) async =>
+      queueEdits.add('next:${tracks.map((t) => t.title).join(',')}');
+
+  @override
+  Future<void> addToQueue(List<Track> tracks) async =>
+      queueEdits.add('add:${tracks.map((t) => t.title).join(',')}');
+
+  @override
+  Future<void> removeFromQueue(int index) async =>
+      queueEdits.add('remove:$index');
+
+  @override
+  Future<void> moveInQueue(int from, int to) async =>
+      queueEdits.add('move:$from>$to');
 
   @override
   Future<void> skipToNext() async => nextCalls++;

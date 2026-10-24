@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app/application/library/library_providers.dart';
+import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/library/library_repository.dart';
 import 'package:music_app/domain/music/ids.dart';
@@ -9,6 +10,8 @@ import 'package:music_app/presentation/common/dialogs.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 
 enum _TrackAction {
+  playNext,
+  playLast,
   favorite,
   unfavorite,
   addToPlaylist,
@@ -27,11 +30,16 @@ Future<void> showTrackMenu(
   final library = ref.read(libraryRepositoryProvider);
   if (!library.current.contains(track.id)) return;
   final favorite = library.current.isFavorite(track.id);
+  final player = ref.read(playbackControllerProvider);
 
   final action = await showActionSheet<_TrackAction>(
     context,
     title: track.title,
     actions: [
+      if (player != null) ...const [
+        SheetAction(AuraStrings.playNext, _TrackAction.playNext),
+        SheetAction(AuraStrings.playLast, _TrackAction.playLast),
+      ],
       favorite
           ? const SheetAction(
               AuraStrings.removeFromFavorites,
@@ -57,6 +65,8 @@ Future<void> showTrackMenu(
   if (action == null || !context.mounted) return;
 
   final Future<Result<void>?> pending = switch (action) {
+    _TrackAction.playNext => _queue(() => player!.playNext([track])),
+    _TrackAction.playLast => _queue(() => player!.addToQueue([track])),
     _TrackAction.favorite => library.setFavorite(track.id, favorite: true),
     _TrackAction.unfavorite => library.setFavorite(track.id, favorite: false),
     _TrackAction.addToPlaylist => _addToPlaylist(context, library, track),
@@ -74,6 +84,12 @@ Future<void> showTrackMenu(
   if (result case Err(:final failure) when context.mounted) {
     await showFailure(context, failure);
   }
+}
+
+/// Queue edits cannot fail in a way worth reporting.
+Future<Result<void>?> _queue(Future<void> Function() edit) async {
+  await edit();
+  return null;
 }
 
 const _newPlaylist = '';

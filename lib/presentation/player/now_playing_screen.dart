@@ -445,6 +445,22 @@ class _Details extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: AuraSpacing.xxs),
+          Text(failureText(failure).$2, style: text.footnote),
+          if (snapshot.status == PlaybackStatus.failed) ...[
+            const SizedBox(height: AuraSpacing.sm),
+            // One more attempt, from where the track stopped. "Next"
+            // below moves on instead. Never retried automatically.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AuraButton(
+                label: AuraStrings.retry,
+                icon: CupertinoIcons.arrow_clockwise,
+                variant: AuraButtonVariant.secondary,
+                onPressed: () => unawaited(controller.play()),
+              ),
+            ),
+          ],
         ],
         const SizedBox(height: AuraSpacing.lg),
         PlayerProgress(duration: snapshot.duration ?? track.duration),

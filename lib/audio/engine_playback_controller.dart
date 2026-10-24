@@ -102,15 +102,19 @@ final class EnginePlaybackController implements PlaybackController {
   Stream<Duration> get positions => _positions.stream;
 
   @override
-  Future<void> setQueue(List<Track> tracks, {int startIndex = 0}) async {
+  Future<void> setQueue(
+    List<Track> tracks, {
+    int startIndex = 0,
+    bool play = false,
+  }) async {
     if (_disposed) return;
     _resumeAfterInterruption = false;
     _resumeAt = null;
     var queue = PlaybackQueue(tracks, startIndex: startIndex);
     if (_queue.isShuffled) queue = queue.shuffled(_random);
     _queue = queue;
-    _wantsPlay = false;
-    await _engine.pause();
+    _wantsPlay = play && queue.current != null;
+    if (!play) await _engine.pause();
     if (queue.isEmpty) {
       _abandonLoad();
       _phase = _TrackPhase.none;
@@ -121,6 +125,42 @@ final class EnginePlaybackController implements PlaybackController {
       return;
     }
     await _loadCurrent();
+  }
+
+  @override
+  Future<void> playNext(List<Track> tracks) => _edit(
+    (queue) => queue.insertNext(tracks),
+    loadsIfEmpty: tracks.isNotEmpty,
+  );
+
+  @override
+  Future<void> addToQueue(List<Track> tracks) =>
+      _edit((queue) => queue.append(tracks), loadsIfEmpty: tracks.isNotEmpty);
+
+  @override
+  Future<void> removeFromQueue(int index) async {
+    if (_disposed || index == _queue.position) return;
+    await _edit((queue) => queue.removeAt(index));
+  }
+
+  @override
+  Future<void> moveInQueue(int from, int to) =>
+      _edit((queue) => queue.move(from, to));
+
+  /// Changes the queue without touching the current track's playback. An
+  /// empty queue that gains tracks loads its first one, paused.
+  Future<void> _edit(
+    PlaybackQueue Function(PlaybackQueue queue) change, {
+    bool loadsIfEmpty = false,
+  }) async {
+    if (_disposed) return;
+    final wasEmpty = _queue.isEmpty;
+    _queue = change(_queue);
+    if (wasEmpty && loadsIfEmpty && !_queue.isEmpty) {
+      await _loadCurrent();
+      return;
+    }
+    _publish();
   }
 
   @override
@@ -163,13 +203,19 @@ final class EnginePlaybackController implements PlaybackController {
 
   @override
   Future<void> seek(Duration position) async {
-    if (_disposed ||
-        (_phase != _TrackPhase.ready && _phase != _TrackPhase.completed)) {
-      return;
-    }
+    if (_disposed) return;
     var target = position.isNegative ? Duration.zero : position;
     final duration = _duration;
     if (duration != null && target > duration) target = duration;
+    if (_phase == _TrackPhase.loading) {
+      // Applied once the track is open, instead of being lost.
+      _resumeAt = target;
+      _setPosition(target);
+      return;
+    }
+    if (_phase != _TrackPhase.ready && _phase != _TrackPhase.completed) {
+      return;
+    }
     if (_phase == _TrackPhase.completed && target < (duration ?? target)) {
       _phase = _TrackPhase.ready;
       _publish();
@@ -241,9 +287,17 @@ final class EnginePlaybackController implements PlaybackController {
     unawaited(_positions.close());
   }
 
+  /// At most this many unplayable tracks in a row are skipped during
+  /// automatic advance before the player stops and reports the failure.
+  static const maxAutoSkips = 5;
+
+  /// Unplayable tracks skipped in a row; reset by a successful load.
+  int _autoSkips = 0;
+
   /// Loads the current track; plays it if the user wants sound by the time
-  /// it is ready.
-  Future<void> _loadCurrent() async {
+  /// it is ready. [autoAdvance]: the queue moved on by itself, so a track
+  /// that cannot play is skipped (bounded) instead of stopping the music.
+  Future<void> _loadCurrent({bool autoAdvance = false}) async {
     _abandonLoad();
     final token = _loadToken;
     final cancellation = _loadCancellation = Cancellation();
@@ -261,7 +315,7 @@ final class EnginePlaybackController implements PlaybackController {
         location = value;
       case Err(:final failure):
         if (!_isCurrent(token)) return;
-        _fail(failure);
+        await _failOrSkip(failure, autoAdvance: autoAdvance);
         return;
     }
     if (!_isCurrent(token)) return;
@@ -273,6 +327,7 @@ final class EnginePlaybackController implements PlaybackController {
         expectedDuration: track.duration,
       );
       if (!_isCurrent(token)) return;
+      _autoSkips = 0;
       _phase = _TrackPhase.ready;
       _duration = duration ?? track.duration;
       final resumeAt = _resumeAt;
@@ -288,7 +343,7 @@ final class EnginePlaybackController implements PlaybackController {
       return;
     } on AudioLoadException catch (e, stackTrace) {
       if (!_isCurrent(token)) return;
-      _fail(
+      await _failOrSkip(
         _failureFor(
           e.kind,
           location,
@@ -297,9 +352,45 @@ final class EnginePlaybackController implements PlaybackController {
           cause: e,
           stackTrace: stackTrace,
         ),
+        autoAdvance: autoAdvance,
       );
     }
   }
+
+  /// During automatic advance, a track that can never play here (removed,
+  /// blocked, unsupported) is skipped like a dead track in Apple Music.
+  /// Connection problems stop instead: the next track would fail the same
+  /// way, and skipping would silently empty the queue.
+  Future<void> _failOrSkip(
+    AppFailure failure, {
+    required bool autoAdvance,
+  }) async {
+    final next = _queue.next(_repeat, AdvanceReason.userSkipped);
+    final canSkip =
+        autoAdvance &&
+        _isTrackSpecific(failure) &&
+        _autoSkips < maxAutoSkips &&
+        next != null &&
+        next.position != _queue.position;
+    if (!canSkip) {
+      _autoSkips = 0;
+      _fail(failure);
+      return;
+    }
+    _autoSkips++;
+    _queue = next;
+    await _loadCurrent(autoAdvance: true);
+  }
+
+  static bool _isTrackSpecific(AppFailure failure) => switch (failure) {
+    NotFoundFailure() ||
+    AccessDeniedFailure() ||
+    UnsupportedMediaFailure() ||
+    FileAccessFailure() ||
+    FeatureUnavailableFailure() ||
+    InvalidResponseFailure() => true,
+    _ => false,
+  };
 
   /// Makes any load in flight stale and cancels its network work.
   void _abandonLoad() {
@@ -464,7 +555,7 @@ final class EnginePlaybackController implements PlaybackController {
       return;
     }
     _queue = next;
-    await _loadCurrent();
+    await _loadCurrent(autoAdvance: true);
   }
 
   void _onEnginePosition(Duration position) {

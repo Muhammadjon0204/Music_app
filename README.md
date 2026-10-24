@@ -5,7 +5,11 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 11 — Audius.** Real online catalog through the official
+> Status: **Phase 12 — Player reliability.** Editable queue (play next,
+> play last, remove, drag to reorder, VoiceOver actions), dead tracks
+> skipped during auto-advance (bounded, never on network errors), seeks
+> while loading kept, retry after a failure.
+> **Phase 11 — Audius.** Real online catalog through the official
 > Audius API: popular tracks on Home, search next to your library, real
 > covers (with mirror fallback), streaming through the same player, and a
 > link to each track's Audius page. No keys or secrets; Audius data is

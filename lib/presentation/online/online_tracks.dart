@@ -64,22 +64,38 @@ Future<void> openOriginal(
   }
 }
 
+enum _OnlineAction { playNext, playLast, open }
+
 Future<void> showOnlineTrackMenu(
   BuildContext context,
   WidgetRef ref,
   Track track,
 ) async {
   final name = providerNameOf(ref, track);
-  final open = await showActionSheet<bool>(
+  final player = ref.read(playbackControllerProvider);
+  final queueable = player != null && canPlayInApp(track);
+  final action = await showActionSheet<_OnlineAction>(
     context,
     title: track.title,
     actions: [
+      if (queueable) ...const [
+        SheetAction(AuraStrings.playNext, _OnlineAction.playNext),
+        SheetAction(AuraStrings.playLast, _OnlineAction.playLast),
+      ],
       if (onlineSourceOf(track)?.canOpenExternally ?? false)
-        SheetAction(AuraStrings.openIn(name), true),
+        SheetAction(AuraStrings.openIn(name), _OnlineAction.open),
     ],
   );
-  if ((open ?? false) && context.mounted) {
-    await openOriginal(context, ref, track);
+  if (!context.mounted) return;
+  switch (action) {
+    case _OnlineAction.playNext:
+      await player?.playNext([track]);
+    case _OnlineAction.playLast:
+      await player?.addToQueue([track]);
+    case _OnlineAction.open:
+      await openOriginal(context, ref, track);
+    case null:
+      break;
   }
 }
 

@@ -12,9 +12,10 @@ Future<void> playTracks(
 }) async {
   final controller = ref.read(playbackControllerProvider);
   if (controller == null || tracks.isEmpty) return;
-  await controller.setQueue(tracks, startIndex: index);
+  // Shuffle off first, so the new queue is built in order; play starts as
+  // soon as the track is ready, without a paused moment in between.
   await controller.setShuffleEnabled(false);
-  await controller.play();
+  await controller.setQueue(tracks, startIndex: index, play: true);
 }
 
 /// Plays [tracks] shuffled, starting from a random one.
@@ -26,7 +27,7 @@ Future<void> shuffleTracks(
   final controller = ref.read(playbackControllerProvider);
   if (controller == null || tracks.isEmpty) return;
   final start = (random ?? Random()).nextInt(tracks.length);
-  await controller.setQueue(tracks, startIndex: start);
+  await controller.setQueue(tracks, startIndex: start, play: true);
+  // Shuffles the rest; the starting track keeps playing.
   await controller.setShuffleEnabled(true);
-  await controller.play();
 }
