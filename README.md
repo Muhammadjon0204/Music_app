@@ -1,11 +1,24 @@
-# AURA
+# MusicLab
 
 [![CI](https://github.com/Muhammadjon0204/Music_app/actions/workflows/ci.yml/badge.svg)](https://github.com/Muhammadjon0204/Music_app/actions/workflows/ci.yml)
 
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 12 — Player reliability.** Editable queue (play next,
+> Status: **Phase 15 — Jamendo, second catalog.** Creative Commons music from
+> Jamendo's official API joins the online catalog: search and "popular"
+> show both catalogs mixed in one list, without provider names; Now
+> Playing credits Jamendo with a link to the track's page, as its terms
+> require. Needs a Jamendo client ID at build time (see below).
+> **Phase 14 — SoundCloud links.** Paste a SoundCloud track,
+> playlist or profile link; it plays online in SoundCloud's official
+> embedded player inside AURA, with its track list shown in AURA's style.
+> Separate from AURA's queue, as SoundCloud's terms require.
+> **Phase 13 — History and persistence.** Listening history
+> (Library → История, "recently played" on Home), favorites for Audius
+> tracks, and the queue restored after a restart, paused where it stopped.
+> Online tracks are stored as references only (provider + ID).
+> **Phase 12 — Player reliability.** Editable queue (play next,
 > play last, remove, drag to reorder, VoiceOver actions), dead tracks
 > skipped during auto-advance (bounded, never on network errors), seeks
 > while loading kept, retry after a failure.
@@ -54,6 +67,15 @@ Web (Chrome):
 
 ```bash
 flutter run -d chrome
+```
+
+Jamendo is enabled only when the build gets its client ID (a public app
+identifier, kept out of Git anyway). Copy `dart_defines.example.json` to
+`dart_defines.local.json` (ignored by Git), put your ID from
+[devportal.jamendo.com](https://devportal.jamendo.com) in it, and add:
+
+```bash
+flutter run -d chrome --dart-define-from-file=dart_defines.local.json
 ```
 
 Windows desktop:
@@ -113,7 +135,7 @@ testing on a physical iPhone (background audio, lock screen, Bluetooth).
 ## Project identifiers
 
 - Dart package name: `music_app` (technical, not user-visible)
-- Display name: `AURA`
+- Display name: `MusicLab`
 - iOS bundle ID / Android application ID: `com.example.*` placeholders —
   must be replaced with a real reverse-domain ID before any TestFlight or
   store build.

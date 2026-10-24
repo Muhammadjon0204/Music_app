@@ -68,6 +68,16 @@ abstract interface class TrackDetailsProvider implements MusicProvider {
   });
 }
 
+/// Providers that can look up many tracks in one request, e.g. to show
+/// saved references again. Unknown or removed IDs are simply absent from
+/// the result; order is not guaranteed.
+abstract interface class BatchTrackDetailsProvider implements MusicProvider {
+  Future<Result<List<Track>>> tracksByIds(
+    List<ExternalTrackId> ids, {
+    Cancellation? cancellation,
+  });
+}
+
 /// Providers whose tracks AURA's own player may stream.
 abstract interface class StreamingProvider implements MusicProvider {
   /// A URL the audio engine can open now. It may redirect to a temporary
@@ -77,6 +87,10 @@ abstract interface class StreamingProvider implements MusicProvider {
     Cancellation? cancellation,
   });
 }
+
+/// Providers whose terms require naming them ([MusicProvider.displayName])
+/// next to each of their tracks, with a link to the track's page.
+abstract interface class AttributionRequiredProvider implements MusicProvider {}
 
 /// The providers this build knows about. Local music needs none.
 final class ProviderRegistry {

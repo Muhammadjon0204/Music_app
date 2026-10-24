@@ -39,6 +39,9 @@ final class SembastLibraryRepository implements LibraryRepository {
   }
 
   final Database _db;
+
+  /// Shared with other stores kept in the same file (listening history).
+  Database get database => _db;
   final LibraryPaths? _paths;
   final DateTime Function() _now;
 

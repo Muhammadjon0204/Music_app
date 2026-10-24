@@ -10,6 +10,7 @@ import 'package:music_app/application/infrastructure_providers.dart';
 import 'package:music_app/application/library/artwork_providers.dart';
 import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
+import 'package:music_app/application/playback/listening_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
@@ -28,13 +29,20 @@ import 'package:music_app/data/library/file_track_importer.dart';
 import 'package:music_app/data/network/json_http_client.dart';
 import 'package:music_app/data/platform/url_launcher_link_opener.dart';
 import 'package:music_app/data/providers/audius/audius_provider.dart';
+import 'package:music_app/data/providers/jamendo/jamendo_provider.dart';
 import 'package:music_app/data/library/in_memory_library_repository.dart';
+import 'package:music_app/data/library/in_memory_listening_store.dart';
 import 'package:music_app/data/library/io_missing_file_checker.dart';
 import 'package:music_app/data/library/library_home_feed_source.dart';
 import 'package:music_app/data/library/library_paths.dart';
 import 'package:music_app/data/library/sembast_library_repository.dart';
+import 'package:music_app/data/library/sembast_listening_store.dart';
 import 'package:music_app/data/library/system_audio_file_picker.dart';
 import 'package:music_app/domain/library/library_repository.dart';
+import 'package:music_app/domain/playback/listening.dart';
+import 'package:music_app/integrations/soundcloud/soundcloud_link_store.dart';
+import 'package:music_app/integrations/soundcloud/soundcloud_oembed.dart';
+import 'package:music_app/integrations/soundcloud/soundcloud_providers.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
 import 'package:sembast/sembast_io.dart';
 
@@ -50,7 +58,7 @@ Future<void> main() async {
 
   // The library lives in the app's support directory. On the web there are
   // no persistent files, so it is kept in memory and import is unavailable.
-  final (library, paths, storageFailure) = await _openLibrary();
+  final (library, listening, paths, storageFailure) = await _openLibrary();
 
   // One logger for startup and the app (same settings as appLoggerProvider).
   final AppLogger logger = DeveloperLogger(
@@ -59,10 +67,19 @@ Future<void> main() async {
   );
   final session = hasAudio ? await _configureAudioSession(logger) : null;
 
-  // Online catalogs. Audius: public read API, no secrets in the app.
+  // Online catalogs: public read APIs, no secrets in the app. Jamendo only
+  // when the build was given its client ID.
+  final http = JsonHttpClient(logger: logger);
   final providers = ProviderRegistry([
-    AudiusProvider(http: JsonHttpClient(logger: logger)),
+    AudiusProvider(http: http),
+    if (AppConfig.jamendoClientId.isNotEmpty)
+      JamendoProvider(http: http, clientId: AppConfig.jamendoClientId),
   ]);
+  // SoundCloud: saved links play in its official embedded player.
+  final SoundCloudLinkStore soundCloudLinks =
+      library is SembastLibraryRepository
+      ? SembastSoundCloudLinkStore(library.database)
+      : InMemorySoundCloudLinkStore();
   final playback = EnginePlaybackController(
     engine: engine,
     resolver: TrackAudioResolver(
@@ -88,6 +105,7 @@ Future<void> main() async {
     overrides: [
       libraryRepositoryProvider.overrideWithValue(library),
       libraryStorageFailureProvider.overrideWithValue(storageFailure),
+      listeningStoreProvider.overrideWithValue(listening),
       // Bundled demo tones the user can add to the library on request.
       demoTracksProvider.overrideWithValue(DemoCatalog.tones),
       // Home shows the library, and the real Audius catalog next to it;
@@ -96,6 +114,8 @@ Future<void> main() async {
         LibraryHomeFeedSource(repository: library),
       ),
       providerRegistryProvider.overrideWithValue(providers),
+      soundCloudLinkStoreProvider.overrideWithValue(soundCloudLinks),
+      soundCloudOEmbedProvider.overrideWithValue(SoundCloudOEmbed(http)),
       externalLinkOpenerProvider.overrideWithValue(
         const UrlLauncherLinkOpener(),
       ),
@@ -148,6 +168,10 @@ Future<void> main() async {
     return !kDebugMode;
   };
 
+  // Restores the last session in the background (online tracks may need
+  // the network), then records listening history.
+  container.listen(listeningSessionProvider, (_, _) {});
+
   runApp(
     UncontrolledProviderScope(container: container, child: const AuraApp()),
   );
@@ -179,7 +203,7 @@ Future<void> _startSystemMediaSession(
       builder: builder,
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.aura.music.playback',
-        androidNotificationChannelName: 'AURA',
+        androidNotificationChannelName: 'MusicLab',
       ),
     );
   } on Object catch (e, stackTrace) {
@@ -191,8 +215,13 @@ Future<void> _startSystemMediaSession(
   }
 }
 
-Future<(LibraryRepository, LibraryPaths?, AppFailure?)> _openLibrary() async {
-  if (kIsWeb) return (InMemoryLibraryRepository(), null, null);
+/// The library and the listening history share one database file; on the
+/// web (or when it cannot be opened) both live in memory.
+Future<(LibraryRepository, ListeningStore, LibraryPaths?, AppFailure?)>
+_openLibrary() async {
+  if (kIsWeb) {
+    return (InMemoryLibraryRepository(), InMemoryListeningStore(), null, null);
+  }
   try {
     final paths = await LibraryPaths.forApp();
     await Directory(paths.root).create(recursive: true);
@@ -201,10 +230,16 @@ Future<(LibraryRepository, LibraryPaths?, AppFailure?)> _openLibrary() async {
       path: paths.databasePath,
       paths: paths,
     );
-    return (repository, paths, null);
+    return (
+      repository,
+      SembastListeningStore(repository.database),
+      paths,
+      null,
+    );
   } on Object catch (e, stackTrace) {
     return (
       InMemoryLibraryRepository(),
+      InMemoryListeningStore(),
       null,
       StorageFailure(
         debugMessage: 'Cannot open library: $e',

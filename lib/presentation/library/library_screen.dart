@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -8,11 +9,13 @@ import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/library/import.dart';
 import 'package:music_app/domain/library/library_snapshot.dart';
+import 'package:music_app/integrations/soundcloud/soundcloud_providers.dart';
 import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/common/dialogs.dart';
 import 'package:music_app/presentation/common/failure_text.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/library/mixed_track_list.dart';
 import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 
@@ -21,6 +24,7 @@ class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   static const _recentCount = 10;
+  static const _emptyStateMinHeight = 420.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,22 +57,59 @@ class LibraryScreen extends ConsumerWidget {
     final List<Widget> body;
     if (value != null && value.isEmpty) {
       body = [
-        SliverFillRemaining(
-          child: AuraEmptyState(
-            icon: CupertinoIcons.music_albums,
-            title: AuraStrings.libraryEmptyTitle,
-            message: canImport
-                ? AuraStrings.libraryEmptyMessage
-                : AuraStrings.libraryEmptyMessageNoImport,
-            primaryAction: canImport ? importAction : demoAction,
-            secondaryAction: canImport ? demoAction : null,
+        // Online listening and SoundCloud work without any local music.
+        SliverList.list(
+          children: [
+            if (ref.watch(soundCloudLinkStoreProvider) != null)
+              _CategoryTile(
+                icon: CupertinoIcons.cloud,
+                title: AuraStrings.savedLinks,
+                subtitle: AuraStrings.soundCloudLinkHint,
+                onPressed: () =>
+                    unawaited(context.push(AppRoutes.librarySoundCloud)),
+              ),
+            _CategoryTile(
+              icon: historyIcon,
+              title: AuraStrings.history,
+              subtitle: AuraStrings.recentlyPlayed,
+              onPressed: () =>
+                  unawaited(context.push(AppRoutes.libraryHistory)),
+            ),
+          ],
+        ),
+        // The rest of the screen, but never so little that the rows above
+        // squeeze it out at large text sizes (the page scrolls instead;
+        // the message scrolls itself if it needs more).
+        SliverLayoutBuilder(
+          builder: (context, constraints) => SliverToBoxAdapter(
+            child: SizedBox(
+              height: math.max(
+                constraints.remainingPaintExtent,
+                _emptyStateMinHeight,
+              ),
+              child: AuraEmptyState(
+                icon: CupertinoIcons.music_albums,
+                title: AuraStrings.libraryEmptyTitle,
+                message: canImport
+                    ? AuraStrings.libraryEmptyMessage
+                    : AuraStrings.libraryEmptyMessageNoImport,
+                primaryAction: canImport ? importAction : demoAction,
+                secondaryAction: canImport ? demoAction : null,
+              ),
+            ),
           ),
         ),
       ];
     } else if (value != null) {
       final recent = value.recentlyAdded(limit: _recentCount);
       body = [
-        SliverList.list(children: _categories(context, value)),
+        SliverList.list(
+          children: _categories(
+            context,
+            value,
+            soundCloud: ref.watch(soundCloudLinkStoreProvider) != null,
+          ),
+        ),
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.only(
@@ -137,14 +178,34 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _categories(BuildContext context, LibrarySnapshot library) {
+  List<Widget> _categories(
+    BuildContext context,
+    LibrarySnapshot library, {
+    required bool soundCloud,
+  }) {
     void open(String route) => unawaited(context.push(route));
     return [
       _CategoryTile(
         icon: CupertinoIcons.heart_fill,
         title: AuraStrings.favorites,
-        subtitle: AuraStrings.trackCount(library.favorites.length),
+        // Library and online favorites alike.
+        subtitle: AuraStrings.trackCount(
+          library.favorites.length + library.onlineFavoriteIds.length,
+        ),
         onPressed: () => open(AppRoutes.libraryFavorites),
+      ),
+      if (soundCloud)
+        _CategoryTile(
+          icon: CupertinoIcons.cloud,
+          title: AuraStrings.savedLinks,
+          subtitle: AuraStrings.soundCloudLinkHint,
+          onPressed: () => open(AppRoutes.librarySoundCloud),
+        ),
+      _CategoryTile(
+        icon: historyIcon,
+        title: AuraStrings.history,
+        subtitle: AuraStrings.recentlyPlayed,
+        onPressed: () => open(AppRoutes.libraryHistory),
       ),
       _CategoryTile(
         icon: CupertinoIcons.music_note_list,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app/application/online/online_track_lookup.dart';
 import 'package:music_app/application/search/search_query_provider.dart';
 import 'package:music_app/core/error/app_failure.dart';
 import 'package:music_app/core/error/result.dart';
@@ -18,38 +19,42 @@ final providerRegistryProvider = Provider<ProviderRegistry>(
 /// Null where links cannot be opened (tests).
 final externalLinkOpenerProvider = Provider<ExternalLinkOpener?>((ref) => null);
 
-/// Tracks from one provider, e.g. its popular list.
-final class ProviderTracks {
-  ProviderTracks({required this.providerName, required List<Track> tracks})
-    : tracks = List.unmodifiable(tracks);
-
-  final String providerName;
-  final List<Track> tracks;
-}
-
-/// The first provider's popular tracks for Home, or null when no provider
-/// offers a popular list. Loaded once per session (the Audius terms allow
-/// only session caching); a failure is an error the screen can retry,
-/// never retried automatically.
-final popularTracksProvider = FutureProvider<ProviderTracks?>((ref) async {
+/// Popular tracks of every provider that has a list, interleaved into one
+/// list for Home, or null when no provider offers one. Loaded once per
+/// session (the providers' terms allow only session caching). A provider
+/// that fails is left out; only when all fail is it an error the screen can
+/// retry, never retried automatically.
+final popularTracksProvider = FutureProvider<List<Track>?>((ref) async {
   final registry = ref.watch(providerRegistryProvider);
-  final provider = registry.all.whereType<PopularTracksProvider>().firstOrNull;
-  if (provider == null) return null;
+  final providers = registry.all.whereType<PopularTracksProvider>().toList();
+  if (providers.isEmpty) return null;
 
   final cancellation = Cancellation();
   ref.onDispose(cancellation.cancel);
-  final result = await provider.popularTracks(
-    page: const PageRequest(limit: 20),
-    cancellation: cancellation,
-  );
-  return switch (result) {
-    Ok(:final value) => ProviderTracks(
-      providerName: provider.displayName,
-      tracks: value.items,
-    ),
-    Err(:final failure) => throw failure,
-  };
+  final results = await Future.wait([
+    for (final provider in providers)
+      provider.popularTracks(
+        page: const PageRequest(limit: 20),
+        cancellation: cancellation,
+      ),
+  ]);
+  final lists = [
+    for (final result in results)
+      if (result case Ok(:final value)) value.items,
+  ];
+  if (lists.isEmpty) throw (results.first as Err<ProviderPage<Track>>).failure;
+  final tracks = interleave(lists);
+  ref.read(onlineTrackCacheProvider.notifier).remember(tracks);
+  return tracks;
 }, retry: (_, _) => null);
+
+/// One item of each list in turn: `[a1, b1, a2, b2, a3]`. Keeps every
+/// catalog visible near the top instead of one after another.
+List<T> interleave<T>(List<List<T>> lists) => [
+  for (var i = 0; lists.any((l) => i < l.length); i++)
+    for (final list in lists)
+      if (i < list.length) list[i],
+];
 
 /// One provider's part of the online search results.
 final class OnlineSearchSection {
@@ -58,13 +63,24 @@ final class OnlineSearchSection {
     required this.providerName,
     List<Track> tracks = const [],
     this.isLoading = false,
+    List<int> pageEnds = const [],
     this.failure,
     this.nextOffset,
-  }) : tracks = List.unmodifiable(tracks);
+  }) : tracks = List.unmodifiable(tracks),
+       pageEnds = List.unmodifiable(pageEnds);
 
   final ProviderId providerId;
   final String providerName;
   final List<Track> tracks;
+
+  /// Where each loaded page ends in [tracks], for [mergedTracks].
+  final List<int> pageEnds;
+
+  /// The tracks of each loaded page.
+  List<List<Track>> get pages => [
+    for (final (i, end) in pageEnds.indexed)
+      tracks.sublist(i == 0 ? 0 : pageEnds[i - 1], end),
+  ];
 
   /// First page or the next page is on its way.
   final bool isLoading;
@@ -77,6 +93,7 @@ final class OnlineSearchSection {
 
   OnlineSearchSection copyWith({
     List<Track>? tracks,
+    List<int>? pageEnds,
     bool? isLoading,
     AppFailure? Function()? failure,
     int? Function()? nextOffset,
@@ -84,10 +101,26 @@ final class OnlineSearchSection {
     providerId: providerId,
     providerName: providerName,
     tracks: tracks ?? this.tracks,
+    pageEnds: pageEnds ?? this.pageEnds,
     isLoading: isLoading ?? this.isLoading,
     failure: failure == null ? this.failure : failure(),
     nextOffset: nextOffset == null ? this.nextOffset : nextOffset(),
   );
+}
+
+/// The results of all [sections] as one list: page by page, the providers'
+/// tracks interleaved. Loading more only adds at the end, because every
+/// provider's next page comes after all first pages.
+List<Track> mergedTracks(List<OnlineSearchSection> sections) {
+  final pages = [for (final s in sections) s.pages];
+  final depth = pages.fold(0, (max, p) => p.length > max ? p.length : max);
+  return [
+    for (var page = 0; page < depth; page++)
+      ...interleave([
+        for (final p in pages)
+          if (page < p.length) p[page],
+      ]),
+  ];
 }
 
 /// Searches every provider that can, independently: one failing or slow
@@ -142,6 +175,16 @@ class OnlineSearchController extends Notifier<List<OnlineSearchSection>> {
     await _load(providerId, offset: offset, cancellation: _cancellation);
   }
 
+  /// Next page of every provider at once, for the merged list; a provider
+  /// whose last request failed is asked again instead.
+  Future<void> loadMoreAll() => Future.wait([
+    for (final section in state)
+      if (section.failure != null)
+        retry(section.providerId)
+      else if (section.hasMore)
+        loadMore(section.providerId),
+  ]);
+
   /// Repeats the request that failed (first page or next page).
   Future<void> retry(ProviderId providerId) async {
     final section = _section(providerId);
@@ -178,15 +221,18 @@ class OnlineSearchController extends Notifier<List<OnlineSearchSection>> {
 
     switch (result) {
       case Ok(:final value):
+        ref.read(onlineTrackCacheProvider.notifier).remember(value.items);
         _update(id, (s) {
           final known = {for (final t in s.tracks) t.id};
+          // Pages can overlap when the catalog changes between requests.
+          final tracks = [
+            ...s.tracks,
+            for (final t in value.items)
+              if (known.add(t.id)) t,
+          ];
           return s.copyWith(
-            // Pages can overlap when the catalog changes between requests.
-            tracks: [
-              ...s.tracks,
-              for (final t in value.items)
-                if (known.add(t.id)) t,
-            ],
+            tracks: tracks,
+            pageEnds: [...s.pageEnds, tracks.length],
             isLoading: false,
             nextOffset: () => value.nextOffset,
           );

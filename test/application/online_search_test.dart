@@ -141,6 +141,64 @@ void main() {
       expect(catalog.searches, hasLength(2));
     });
 
+    test('results of all providers are merged page by page', () async {
+      ProviderPage<Track> page(String provider, int offset) => ProviderPage(
+        items: [
+          for (var i = offset; i < offset + 2; i++)
+            onlineTrack('$i', provider: provider),
+        ],
+        nextOffset: offset == 0 ? 2 : null,
+      );
+      final a = FakeCatalogProvider(
+        providerId: const ProviderId('a'),
+        search: (_, p) async => Ok(page('a', p.offset)),
+      );
+      final b = FakeCatalogProvider(
+        providerId: const ProviderId('b'),
+        search: (_, p) async => Ok(page('b', p.offset)),
+      );
+      create([a, b]);
+      search('x');
+      await _settle();
+      String ids() =>
+          mergedTracks(sections())
+              .map((t) => t.id.value.replaceAll(':', ''))
+              .join(' ');
+      expect(ids(), 'a0 b0 a1 b1');
+
+      await container.read(onlineSearchProvider.notifier).loadMoreAll();
+      // The second pages come after all first pages: nothing shown moves.
+      expect(ids(), 'a0 b0 a1 b1 a2 b2 a3 b3');
+      expect(sections().every((s) => !s.hasMore), isTrue);
+    });
+
+    test('"show more" also asks a failed provider again', () async {
+      var fail = true;
+      final good = FakeCatalogProvider(
+        providerId: const ProviderId('good'),
+        search: (_, _) async =>
+            Ok(ProviderPage(items: [onlineTrack('1', provider: 'good')])),
+      );
+      final flaky = FakeCatalogProvider(
+        providerId: const ProviderId('flaky'),
+        search: (_, _) async => fail
+            ? const Err(TimeoutFailure())
+            : Ok(ProviderPage(items: [onlineTrack('2', provider: 'flaky')])),
+      );
+      create([good, flaky]);
+      search('x');
+      await _settle();
+      expect(mergedTracks(sections()), hasLength(1));
+
+      fail = false;
+      await container.read(onlineSearchProvider.notifier).loadMoreAll();
+      expect(mergedTracks(sections()).map((t) => t.id.value), [
+        'good:1',
+        'flaky:2',
+      ]);
+      expect(good.searches, hasLength(1));
+    });
+
     test('nothing is retried automatically', () async {
       final catalog = FakeCatalogProvider(
         search: (_, _) async => const Err(RateLimitedFailure()),
@@ -182,6 +240,53 @@ void main() {
       },
     );
 
+    test('lists of all providers are mixed; one failing is left out', () async {
+      ProviderRegistry registry(bool bFails) => ProviderRegistry([
+        FakeCatalogProvider(
+          providerId: const ProviderId('a'),
+          popular: () async => Ok(
+            ProviderPage(
+              items: [
+                onlineTrack('1', provider: 'a'),
+                onlineTrack('2', provider: 'a'),
+              ],
+            ),
+          ),
+        ),
+        FakeCatalogProvider(
+          providerId: const ProviderId('b'),
+          popular: () async => bFails
+              ? const Err(NetworkFailure())
+              : Ok(ProviderPage(items: [onlineTrack('3', provider: 'b')])),
+        ),
+      ]);
+      Future<List<String>> load(bool bFails) async {
+        final container = ProviderContainer.test(
+          overrides: [
+            providerRegistryProvider.overrideWithValue(registry(bFails)),
+          ],
+        );
+        container.listen(popularTracksProvider, (_, _) {});
+        final tracks = await container.read(popularTracksProvider.future);
+        return [for (final t in tracks!) t.id.value];
+      }
+
+      expect(await load(false), ['a:1', 'b:3', 'a:2']);
+      expect(await load(true), ['a:1', 'a:2']);
+    });
+
+    test('interleave takes one of each in turn', () {
+      expect(
+        interleave([
+          [1, 2, 3],
+          <int>[],
+          [10],
+        ]),
+        [1, 10, 2, 3],
+      );
+      expect(interleave(<List<int>>[]), isEmpty);
+    });
+
     test('loaded once per session', () async {
       final catalog = FakeCatalogProvider(
         popular: () async => Ok(ProviderPage(items: [onlineTrack('1')])),
@@ -196,7 +301,7 @@ void main() {
       container.listen(popularTracksProvider, (_, _) {});
       final first = await container.read(popularTracksProvider.future);
       final again = await container.read(popularTracksProvider.future);
-      expect(first!.providerName, 'Каталог');
+      expect(first!.map((t) => t.title), ['Online 1']);
       expect(again, same(first));
       expect(catalog.popularCalls, 1);
     });

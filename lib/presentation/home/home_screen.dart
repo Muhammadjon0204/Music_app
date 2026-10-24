@@ -24,6 +24,7 @@ import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/navigation/detail_navigation.dart';
 import 'package:music_app/presentation/online/popular_tracks_section.dart';
+import 'package:music_app/presentation/online/recently_played_section.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -43,6 +44,7 @@ class HomeScreen extends ConsumerWidget {
     final List<Widget> body;
     if (value != null && value.isEmpty && hasCatalog) {
       body = const [
+        SliverToBoxAdapter(child: RecentlyPlayedSection()),
         SliverToBoxAdapter(child: PopularTracksSection()),
         SliverToBoxAdapter(child: _LibraryHint()),
       ];
@@ -68,6 +70,7 @@ class HomeScreen extends ConsumerWidget {
         SliverList.list(
           children: [
             ..._sections(context, ref, value, onPlayFeatured: onPlayFeatured),
+            const RecentlyPlayedSection(),
             if (hasCatalog) const PopularTracksSection(),
           ],
         ),

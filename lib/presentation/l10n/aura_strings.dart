@@ -1,7 +1,7 @@
 /// User-facing Russian strings in one place, ready to move to ARB files when
 /// a second language is added.
 abstract final class AuraStrings {
-  static const appName = 'AURA';
+  static const appName = 'MusicLab';
 
   static const tabHome = 'Главная';
   static const tabSearch = 'Поиск';
@@ -49,7 +49,7 @@ abstract final class AuraStrings {
   static const libraryEmptyTitle = 'Библиотека пуста';
   static const libraryEmptyMessage =
       'Добавьте свои аудиофайлы из приложения «Файлы»: MP3, M4A, AAC, '
-      'FLAC, WAV, AIFF. Файлы копируются в AURA и работают без интернета.';
+      'FLAC, WAV, AIFF. Файлы копируются в MusicLab и работают без интернета.';
   static const libraryEmptyMessageNoImport =
       'В этой версии нельзя добавить свои файлы: у браузера нет постоянного '
       'доступа к ним. Попробуйте демо-треки.';
@@ -72,6 +72,46 @@ abstract final class AuraStrings {
       'после перезапуска.';
 
   static const favorites = 'Любимые треки';
+  static const history = 'История';
+  static const savedLinks = 'Ссылки';
+  static const discoverMusic = 'Обзор музыки';
+  static const discoverMusicHint =
+      'Откроется в браузере. Ссылку на трек или плейлист оттуда можно '
+      'добавить сюда';
+  static const addLink = 'Добавить ссылку';
+  static const soundCloudLinkHint = 'Ссылка на трек, плейлист или профиль';
+  static const soundCloudLinkInvalid =
+      'Эта ссылка не поддерживается. Нужна ссылка на трек, плейлист или '
+      'профиль.';
+  static const soundCloudEmptyTitle = 'Нет сохранённых ссылок';
+  static const soundCloudEmptyMessage =
+      'Вставьте ссылку на трек, плейлист или профиль. Музыка играет онлайн '
+      'во встроенном плеере.';
+  static const soundCloudUnavailable =
+      'Недоступно — возможно, ссылка приватная или удалена';
+  static const soundCloudNote =
+      'Играет во встроенном плеере — отдельно от очереди MusicLab и только '
+      'онлайн.';
+  static const soundCloudNoPlayer =
+      'На этом устройстве встроенного плеера нет. Откройте оригинал.';
+  static const soundCloudWidgetFailed =
+      'Это нельзя проиграть здесь: ссылка приватная или автор запретил '
+      'встраивание.';
+  static const removeLink = 'Удалить ссылку';
+  static const add = 'Добавить';
+  static const online = 'Онлайн';
+  static const recentlyPlayed = 'Недавно прослушанные';
+  static const clearHistory = 'Очистить историю';
+  static const clearHistoryConfirm =
+      'История прослушиваний будет удалена с этого устройства. Музыка и '
+      'избранное останутся.';
+  static const clear = 'Очистить';
+  static const historyEmptyTitle = 'История пуста';
+  static const historyEmptyMessage =
+      'Здесь появятся треки, которые вы слушали дольше 30 секунд. История '
+      'хранится только на этом устройстве.';
+  static String savedUnavailable(int count) =>
+      'Больше недоступно: ${trackCount(count)}';
   static const playlists = 'Плейлисты';
   static const albums = 'Альбомы';
   static const artists = 'Исполнители';
@@ -92,7 +132,7 @@ abstract final class AuraStrings {
   static const removeFromPlaylist = 'Убрать из плейлиста';
   static const removeFromLibrary = 'Удалить из библиотеки';
   static const removeFromLibraryConfirm =
-      'Трек будет удалён из AURA вместе с копией файла. Оригинал в «Файлах» '
+      'Трек будет удалён из MusicLab вместе с копией файла. Оригинал в «Файлах» '
       'не затрагивается.';
   static const remove = 'Удалить';
   static const newPlaylist = 'Новый плейлист';
@@ -128,15 +168,16 @@ abstract final class AuraStrings {
   static const artistsEmptyMessage =
       'Исполнители появляются у треков с тегом «исполнитель».';
   static const searchSectionTracks = 'Треки';
-  static String popularIn(String provider) => 'Популярное в $provider';
-  static String openIn(String provider) => 'Открыть в $provider';
-  static String onlyIn(String provider) => 'Только в $provider';
-  static String sourceIs(String provider) => 'Источник: $provider';
+  static const popularNow = 'Популярное сейчас';
+  static const openOriginal = 'Открыть оригинал';
+
+  /// Credit for catalogs whose terms require naming them on each track.
+  static String sourceCredit(String provider) => 'Источник: $provider';
+  static const onlyInOriginal = 'Слушать в оригинале';
   static const showMore = 'Показать ещё';
-  static String nothingFoundIn(String provider) =>
-      'В $provider ничего не найдено';
+  static const nothingFoundOnline = 'Онлайн ничего не найдено';
   static const searchHintMessageOnline =
-      'Ищите по своей библиотеке и в каталоге Audius: название трека или '
+      'Ищите по своей библиотеке и онлайн: название трека или '
       'исполнитель.';
   static const linkOpenFailed = 'Не удалось открыть ссылку';
   static const homeLibraryHintTitle = 'Добавьте свою музыку';

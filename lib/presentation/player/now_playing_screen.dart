@@ -6,11 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app/application/library/library_providers.dart';
+import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/music/track.dart';
+import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/playback/playback_controller.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
+import 'package:music_app/domain/providers/music_provider.dart';
 import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/dialogs.dart';
 import 'package:music_app/presentation/common/failure_text.dart';
@@ -291,8 +294,9 @@ class _Artwork extends ConsumerWidget {
   }
 }
 
-/// "Источник: Audius ↗" for online tracks: attribution and a way to the
-/// original page. Nothing for local music.
+/// "Открыть оригинал ↗" for online tracks: a way to the original page.
+/// Catalogs whose terms require credit (Jamendo) are named instead:
+/// "Источник: Jamendo ↗". Nothing for local music.
 class _SourceLink extends ConsumerWidget {
   const _SourceLink({required this.track});
 
@@ -303,9 +307,12 @@ class _SourceLink extends ConsumerWidget {
     final source = onlineSourceOf(track);
     if (source == null) return const SizedBox.shrink();
     final colors = context.auraColors;
-    final name = providerNameOf(ref, track);
+    final provider = ref.watch(providerRegistryProvider)[source.providerId];
+    final text = provider is AttributionRequiredProvider
+        ? AuraStrings.sourceCredit(provider.displayName)
+        : AuraStrings.openOriginal;
     final label = Text(
-      AuraStrings.sourceIs(name),
+      text,
       style: context.auraText.footnote.copyWith(color: colors.textSecondary),
     );
     if (!source.canOpenExternally) {
@@ -318,7 +325,7 @@ class _SourceLink extends ConsumerWidget {
       alignment: Alignment.centerLeft,
       child: AuraPressable(
         onPressed: () => unawaited(openOriginal(context, ref, track)),
-        semanticLabel: AuraStrings.openIn(name),
+        semanticLabel: text,
         feedback: AuraPressFeedback.opacity,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
@@ -351,9 +358,11 @@ class _FavoriteButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(librarySnapshotProvider).value;
-    if (library == null || !library.contains(track.id)) {
-      return const SizedBox.shrink();
-    }
+    // Library tracks, and online tracks (saved as a reference only).
+    final canFavorite =
+        library != null &&
+        (library.contains(track.id) || providerRefOf(track.id) != null);
+    if (!canFavorite) return const SizedBox.shrink();
     final favorite = library.isFavorite(track.id);
     final colors = context.auraColors;
     return AuraIconButton(

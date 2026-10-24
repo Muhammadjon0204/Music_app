@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app/application/library/library_providers.dart';
+import 'package:music_app/application/online/online_track_lookup.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/library/library_snapshot.dart';
 import 'package:music_app/domain/music/ids.dart';
@@ -14,6 +15,7 @@ import 'package:music_app/presentation/common/play_tracks.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/library/library_page.dart';
+import 'package:music_app/presentation/library/mixed_track_list.dart';
 import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/detail_navigation.dart';
 
@@ -171,10 +173,12 @@ class FavoritesScreen extends ConsumerWidget {
       builder: (library) {
         // Newest favorite first, as stored.
         final tracks = library.favorites;
+        final onlineIds = library.onlineFavoriteIds;
+        final online = ref.watch(onlineFavoritesProvider);
         return LibraryPage(
           title: AuraStrings.favorites,
-          subtitle: AuraStrings.trackCount(tracks.length),
-          slivers: tracks.isEmpty
+          subtitle: AuraStrings.trackCount(tracks.length + onlineIds.length),
+          slivers: tracks.isEmpty && onlineIds.isEmpty
               ? const [
                   LibraryEmptySliver(
                     icon: CupertinoIcons.heart,
@@ -182,7 +186,33 @@ class FavoritesScreen extends ConsumerWidget {
                     message: AuraStrings.favoritesEmptyMessage,
                   ),
                 ]
-              : _trackSlivers(tracks),
+              : [
+                  if (tracks.isNotEmpty) ..._trackSlivers(tracks),
+                  // Online favorites are stored as references and looked
+                  // up again (the provider's data is not kept).
+                  if (onlineIds.isNotEmpty) ...[
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          top: AuraSpacing.xl,
+                          bottom: AuraSpacing.xs,
+                        ),
+                        child: AuraSectionHeader(title: AuraStrings.online),
+                      ),
+                    ),
+                    if (online.value case final resolved?) ...[
+                      MixedTrackListSliver(tracks: resolved.tracks),
+                      SliverToBoxAdapter(
+                        child: ResolvedListFooter(
+                          resolved: resolved,
+                          onRetry: () =>
+                              ref.invalidate(onlineFavoritesProvider),
+                        ),
+                      ),
+                    ] else
+                      const SliverToBoxAdapter(child: LoadingRow()),
+                  ],
+                ],
         );
       },
     );

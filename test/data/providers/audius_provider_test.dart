@@ -13,6 +13,7 @@ import 'package:music_app/data/providers/audius/audius_provider.dart';
 import 'package:music_app/data/providers/audius/audius_track_mapper.dart';
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track.dart';
+import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
 
 import '../../helpers/audius_fixtures.dart';
@@ -63,7 +64,7 @@ void main() {
         'query': 'ночной город',
         'limit': '10',
         'offset': '20',
-        'app_name': 'AURA',
+        'app_name': 'MusicLab',
       });
       expect(items(result).map((t) => t.id.value), ['audius:a1', 'audius:a2']);
     },
@@ -154,7 +155,7 @@ void main() {
       expect(uri.scheme, 'https');
       expect(uri.host, 'api.audius.co');
       expect(uri.path, '/v1/tracks/D7KyD/stream');
-      expect(uri.queryParameters, {'app_name': 'AURA'});
+      expect(uri.queryParameters, {'app_name': 'MusicLab'});
       expect(requests, isEmpty);
     },
   );
@@ -173,5 +174,55 @@ void main() {
     final location = (result as Ok<AudioLocation>).value as StreamAudio;
     expect(location.uri.path, '/v1/tracks/D7KyD/stream');
     expect(requests, isEmpty);
+  });
+
+  group('bulk lookup', () {
+    test('one request with repeated id parameters', () async {
+      respond = (_) => _json({
+        'data': [audiusTrackJson(id: 'b2'), audiusTrackJson(id: 'a1')],
+      });
+      final result = await audius.tracksByIds(const [
+        ExternalTrackId('a1'),
+        ExternalTrackId('b2'),
+        ExternalTrackId('a1'),
+        ExternalTrackId('bad/id'),
+      ]);
+      final uri = requests.single;
+      expect(uri.path, '/v1/tracks');
+      expect(uri.queryParametersAll['id'], ['a1', 'b2']);
+      expect(uri.queryParameters['app_name'], 'MusicLab');
+      expect((result as Ok<List<Track>>).value.map((t) => t.id.value).toSet(), {
+        'audius:a1',
+        'audius:b2',
+      });
+    });
+
+    test('long lists are split into several requests', () async {
+      respond = (_) => _json({'data': <Object>[]});
+      await audius.tracksByIds([
+        for (var i = 0; i < AudiusProvider.maxBatch + 3; i++)
+          ExternalTrackId('t$i'),
+      ]);
+      expect(requests, hasLength(2));
+      expect(requests.last.queryParametersAll['id'], hasLength(3));
+    });
+
+    test('a track that became unavailable is kept, marked', () async {
+      respond = (_) => _json({
+        'data': [audiusTrackJson(id: 'gone', deleted: true)],
+      });
+      final result = await audius.tracksByIds(const [ExternalTrackId('gone')]);
+      final track = (result as Ok<List<Track>>).value.single;
+      expect(
+        (track.sources.single as ProviderTrackSource).availability,
+        StreamAvailability.unavailable,
+      );
+    });
+
+    test('a failure is passed on', () async {
+      respond = (_) => _json({}, 503);
+      final result = await audius.tracksByIds(const [ExternalTrackId('a')]);
+      expect((result as Err).failure, isA<ServerFailure>());
+    });
   });
 }

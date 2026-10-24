@@ -111,3 +111,15 @@ final class ProviderTrackSource extends TrackSource {
     license,
   );
 }
+
+/// The provider and external ID behind an online track's app-wide ID
+/// ("audius:D7KyD"), or null for local and bundled tracks. Lets the app
+/// store only references to online tracks and look them up again.
+(ProviderId, ExternalTrackId)? providerRefOf(TrackId id) {
+  final colon = id.value.indexOf(':');
+  if (colon <= 0 || colon == id.value.length - 1) return null;
+  return (
+    ProviderId(id.value.substring(0, colon)),
+    ExternalTrackId(id.value.substring(colon + 1)),
+  );
+}

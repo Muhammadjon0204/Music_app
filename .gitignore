@@ -63,6 +63,7 @@ app.*.map.json
 .env
 .env.*
 !.env.example
+dart_defines.local.json
 *.pem
 *.p12
 *.p8

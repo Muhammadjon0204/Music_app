@@ -4,6 +4,7 @@ import 'package:music_app/domain/music/artist.dart';
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/playlist.dart';
 import 'package:music_app/domain/music/track.dart';
+import 'package:music_app/domain/music/track_source.dart';
 
 enum TrackSort { title, artist, recentlyAdded }
 
@@ -41,6 +42,13 @@ final class LibrarySnapshot {
 
   /// Favorite tracks still in the library, most recent first.
   List<Track> get favorites => [for (final id in favoriteIds) ?_byId[id]];
+
+  /// Favorite online tracks, most recent first. Stored as references only
+  /// (provider + ID): their details are looked up when shown.
+  List<TrackId> get onlineFavoriteIds => [
+    for (final id in favoriteIds)
+      if (!_byId.containsKey(id) && providerRefOf(id) != null) id,
+  ];
 
   Playlist? playlist(PlaylistId id) {
     for (final playlist in playlists) {

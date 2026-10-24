@@ -7,6 +7,7 @@ import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/application/search/search_query_provider.dart';
 import 'package:music_app/domain/library/library_search.dart';
+import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
 import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/content_width.dart';
@@ -176,6 +177,8 @@ class _Results extends ConsumerWidget {
       child: AuraSectionHeader(title: title),
     );
     final results = this.results ?? const LibrarySearchResult();
+    // Every catalog in one list, without saying where each track is from.
+    final onlineTracks = mergedTracks(online);
 
     return CustomScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -221,15 +224,17 @@ class _Results extends ConsumerWidget {
           SliverToBoxAdapter(child: header(AuraStrings.searchSectionTracks)),
           TrackListSliver(tracks: results.tracks),
         ],
-        for (final section in online) ...[
-          SliverToBoxAdapter(child: header(section.providerName)),
+        if (online.isNotEmpty) ...[
+          SliverToBoxAdapter(child: header(AuraStrings.online)),
           SliverList.list(
             children: [
-              for (final track in section.tracks)
-                OnlineTrackTile(track: track, list: section.tracks),
+              for (final track in onlineTracks)
+                OnlineTrackTile(track: track, list: onlineTracks),
             ],
           ),
-          SliverToBoxAdapter(child: _OnlineSectionFooter(section: section)),
+          SliverToBoxAdapter(
+            child: _OnlineFooter(sections: online, tracks: onlineTracks),
+          ),
         ],
         SliverToBoxAdapter(
           child: SizedBox(
@@ -241,36 +246,38 @@ class _Results extends ConsumerWidget {
   }
 }
 
-/// Below a provider's results: progress, its own error with retry, "show
-/// more", or a note that it found nothing.
-class _OnlineSectionFooter extends ConsumerWidget {
-  const _OnlineSectionFooter({required this.section});
+/// Below the online results: progress, an error with retry when nothing
+/// came back, "show more" (which also asks again a catalog that failed),
+/// or a note that nothing was found.
+class _OnlineFooter extends ConsumerWidget {
+  const _OnlineFooter({required this.sections, required this.tracks});
 
-  final OnlineSearchSection section;
+  final List<OnlineSearchSection> sections;
+  final List<Track> tracks;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(onlineSearchProvider.notifier);
-    final failure = section.failure;
-    final Widget? child = switch (section) {
-      OnlineSearchSection(isLoading: true) => const SizedBox(
+    final failure = sections.map((s) => s.failure).nonNulls.firstOrNull;
+    final Widget? child = switch (sections) {
+      _ when sections.any((s) => s.isLoading) => const SizedBox(
         height: AuraSizes.listTileMinHeight,
         child: AuraLoadingState(label: AuraStrings.loading),
       ),
-      _ when failure != null => InlineErrorBox(
+      _ when failure != null && tracks.isEmpty => InlineErrorBox(
         error: failure,
-        onRetry: () => unawaited(controller.retry(section.providerId)),
+        onRetry: () => unawaited(controller.loadMoreAll()),
       ),
-      OnlineSearchSection(hasMore: true) => Align(
+      _ when failure != null || sections.any((s) => s.hasMore) => Align(
         alignment: Alignment.centerLeft,
         child: AuraButton(
           label: AuraStrings.showMore,
           variant: AuraButtonVariant.secondary,
-          onPressed: () => unawaited(controller.loadMore(section.providerId)),
+          onPressed: () => unawaited(controller.loadMoreAll()),
         ),
       ),
-      OnlineSearchSection(tracks: []) => Text(
-        AuraStrings.nothingFoundIn(section.providerName),
+      _ when tracks.isEmpty => Text(
+        AuraStrings.nothingFoundOnline,
         style: context.auraText.subhead,
       ),
       _ => null,

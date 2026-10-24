@@ -35,4 +35,10 @@ final class AppConfig {
 
   final AppEnvironment environment;
   final bool loggingEnabled;
+
+  /// Jamendo API client ID: a public identifier, not a secret (the client
+  /// secret is never used). Kept out of Git and passed at build time, e.g.
+  /// `--dart-define-from-file=dart_defines.local.json`. Empty when the build
+  /// has none; Jamendo is then left out.
+  static const jamendoClientId = String.fromEnvironment('JAMENDO_CLIENT_ID');
 }

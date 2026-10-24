@@ -21,8 +21,9 @@ final class AudiusProvider
         SearchableProvider,
         PopularTracksProvider,
         TrackDetailsProvider,
+        BatchTrackDetailsProvider,
         StreamingProvider {
-  AudiusProvider({required this._http, this.appName = 'AURA', Uri? apiBase})
+  AudiusProvider({required this._http, this.appName = 'MusicLab', Uri? apiBase})
     : _apiBase = apiBase ?? Uri.parse('https://api.audius.co/v1');
 
   /// Largest page the API accepts.
@@ -77,6 +78,52 @@ final class AudiusProvider
         ),
       },
     };
+  }
+
+  /// Largest number of IDs sent in one bulk request (keeps URLs short).
+  static const maxBatch = 50;
+
+  /// Many tracks per request (`/v1/tracks?id=...&id=...`). Used to show
+  /// saved references again; IDs the API no longer knows are absent.
+  @override
+  Future<Result<List<Track>>> tracksByIds(
+    List<ExternalTrackId> ids, {
+    Cancellation? cancellation,
+  }) async {
+    final valid = [
+      for (final id in ids.toSet())
+        if (AudiusTrackMapper.isValidId(id.value)) id.value,
+    ];
+    final found = <Track>[];
+    for (var start = 0; start < valid.length; start += maxBatch) {
+      final chunk = valid.skip(start).take(maxBatch).toList();
+      final response = await _http.getJson(
+        _apiBase.replace(
+          pathSegments: [..._apiBase.pathSegments, 'tracks'],
+          queryParameters: {'id': chunk, 'app_name': appName},
+        ),
+        cancellation: cancellation,
+      );
+      switch (response) {
+        case Err(:final failure):
+          return Err(failure);
+        case Ok(:final value):
+          final data = _data(value);
+          if (data is! List<Object?>) {
+            return const Err(
+              InvalidResponseFailure(debugMessage: 'Audius bulk without data'),
+            );
+          }
+          // Keeps unplayable entries: a saved track that became
+          // unavailable is shown as such, not silently dropped.
+          for (final item in data) {
+            if (AudiusTrackMapper.fromJson(item) case final track?) {
+              found.add(track);
+            }
+          }
+      }
+    }
+    return Ok(found);
   }
 
   /// The API's stream endpoint. It redirects to a short-lived signed URL on

@@ -6,6 +6,7 @@ import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/dev/design_system_gallery_screen.dart';
 import 'package:music_app/presentation/home/home_screen.dart';
 import 'package:music_app/domain/music/ids.dart';
+import 'package:music_app/presentation/library/history_screen.dart';
 import 'package:music_app/presentation/library/library_list_screens.dart';
 import 'package:music_app/presentation/library/library_screen.dart';
 import 'package:music_app/presentation/library/track_collection_screens.dart';
@@ -13,6 +14,8 @@ import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/player/now_playing_screen.dart';
 import 'package:music_app/presentation/player/queue_screen.dart';
 import 'package:music_app/presentation/search/search_screen.dart';
+import 'package:music_app/presentation/soundcloud/soundcloud_links_screen.dart';
+import 'package:music_app/presentation/soundcloud/soundcloud_player_screen.dart';
 import 'package:music_app/presentation/shell/app_shell.dart';
 
 /// go_router 18 only recognises `MaterialApp` from the separate
@@ -126,6 +129,27 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'artists',
                     pageBuilder: (_, state) =>
                         _page(state, const ArtistsScreen()),
+                  ),
+                  GoRoute(
+                    path: 'soundcloud',
+                    pageBuilder: (_, state) =>
+                        _page(state, const SoundCloudLinksScreen()),
+                    routes: [
+                      GoRoute(
+                        path: 'player',
+                        pageBuilder: (_, state) => _page(
+                          state,
+                          SoundCloudPlayerScreen(
+                            url: state.uri.queryParameters['url'] ?? '',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'history',
+                    pageBuilder: (_, state) =>
+                        _page(state, const HistoryScreen()),
                   ),
                   GoRoute(
                     path: 'playlists',

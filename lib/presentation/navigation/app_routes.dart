@@ -8,6 +8,12 @@ abstract final class AppRoutes {
   static const libraryAlbums = '/library/albums';
   static const libraryArtists = '/library/artists';
   static const libraryPlaylists = '/library/playlists';
+  static const libraryHistory = '/library/history';
+  static const librarySoundCloud = '/library/soundcloud';
+
+  /// The official SoundCloud player for a saved [link] URL.
+  static String soundCloudPlayer(Uri link) =>
+      '$librarySoundCloud/player?url=${Uri.encodeQueryComponent('$link')}';
 
   /// Full-screen player above the tabs.
   static const nowPlaying = '/player';

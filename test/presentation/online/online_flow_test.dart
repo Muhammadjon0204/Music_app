@@ -10,6 +10,7 @@ import 'package:music_app/core/error/app_failure.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/data/library/in_memory_library_repository.dart';
 import 'package:music_app/data/library/library_home_feed_source.dart';
+import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
@@ -28,6 +29,13 @@ Finder iconButton(String semanticLabel) => find.byWidgetPredicate(
   (w) => w is AuraIconButton && w.semanticLabel == semanticLabel,
 );
 
+/// A catalog whose terms require naming it, like Jamendo.
+class _CreditedCatalog extends FakeCatalogProvider
+    implements AttributionRequiredProvider {
+  _CreditedCatalog({super.search})
+    : super(providerId: const ProviderId('credited'), name: 'Кредит');
+}
+
 final _popular = [
   onlineTrack('1'),
   onlineTrack('2', availability: StreamAvailability.externalOnly),
@@ -38,6 +46,7 @@ void main() {
   late FakeCatalogProvider catalog;
   late FakeLinkOpener links;
   late FakePlaybackController player;
+  late InMemoryLibraryRepository library;
 
   setUp(() {
     catalog = FakeCatalogProvider(
@@ -60,8 +69,9 @@ void main() {
     WidgetTester tester, {
     TestDevice device = iPhone15,
     double textScale = 1,
+    List<MusicProvider>? providers,
   }) async {
-    final library = InMemoryLibraryRepository();
+    library = InMemoryLibraryRepository();
     await pumpAuraApp(
       tester,
       library: library,
@@ -69,7 +79,9 @@ void main() {
       textScale: textScale,
       homeFeedSource: LibraryHomeFeedSource(repository: library),
       overrides: [
-        providerRegistryProvider.overrideWithValue(ProviderRegistry([catalog])),
+        providerRegistryProvider.overrideWithValue(
+          ProviderRegistry(providers ?? [catalog]),
+        ),
         externalLinkOpenerProvider.overrideWithValue(links),
         playbackControllerProvider.overrideWithValue(player),
       ],
@@ -82,7 +94,7 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      expect(find.text(AuraStrings.popularIn('Каталог')), findsOneWidget);
+      expect(find.text(AuraStrings.popularNow), findsOneWidget);
       expect(find.text('Online 1'), findsOneWidget);
       expect(find.text(AuraStrings.homeLibraryHintTitle), findsOneWidget);
       // No sample (demo) content.
@@ -107,7 +119,7 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      expect(find.text(AuraStrings.onlyIn('Каталог')), findsOneWidget);
+      expect(find.text(AuraStrings.onlyInOriginal), findsOneWidget);
       await tester.tap(find.text('Online 2'));
       await tester.pumpAndSettle();
 
@@ -157,12 +169,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('online results appear under the provider name', (
+    testWidgets('online results appear in one "Онлайн" section', (
       tester,
     ) async {
       await pump(tester);
       await type(tester, 'ночь');
-      expect(find.text('Каталог'), findsOneWidget);
+      expect(find.text(AuraStrings.online), findsOneWidget);
+      // No provider names in the interface.
+      expect(find.text('Каталог'), findsNothing);
       expect(find.text('ночь 0'), findsOneWidget);
       expect(find.text('ночь 1'), findsOneWidget);
 
@@ -170,6 +184,37 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('ночь 2'), findsOneWidget);
       expect(find.text(AuraStrings.showMore), findsNothing);
+    });
+
+    testWidgets('two catalogs share one list, mixed, without names', (
+      tester,
+    ) async {
+      final other = _CreditedCatalog(
+        search: (query, page) async =>
+            Ok(ProviderPage(items: [onlineTrack('c', provider: 'credited')])),
+      );
+      await pump(tester, providers: [catalog, other]);
+      await type(tester, 'ночь');
+      expect(find.text(AuraStrings.online), findsOneWidget);
+      expect(find.text('Кредит'), findsNothing);
+      final titles = [
+        for (final tile in tester.widgetList<AuraListTile>(
+          find.byType(AuraListTile),
+        ))
+          tile.title,
+      ];
+      expect(titles, ['ночь 0', 'Online c', 'ночь 1']);
+    });
+
+    testWidgets('one catalog failing leaves the other results', (tester) async {
+      final broken = _CreditedCatalog(
+        search: (_, _) async => const Err(NetworkFailure()),
+      );
+      await pump(tester, providers: [catalog, broken]);
+      await type(tester, 'ночь');
+      expect(find.text('ночь 0'), findsOneWidget);
+      expect(find.text(AuraStrings.failureNetworkTitle), findsNothing);
+      expect(find.text(AuraStrings.showMore), findsOneWidget);
     });
 
     testWidgets('a provider error is shown in its section with retry', (
@@ -204,7 +249,7 @@ void main() {
       await type(tester, 'ночь');
       await tester.tap(iconButton('${AuraStrings.more}: ночь 0'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(AuraStrings.openIn('Каталог')));
+      await tester.tap(find.text(AuraStrings.openOriginal));
       await tester.pumpAndSettle();
       expect(links.opened, [Uri.parse('https://catalog.test/track/s0')]);
     });
@@ -215,7 +260,7 @@ void main() {
       await type(tester, 'ночь');
       await tester.tap(iconButton('${AuraStrings.more}: ночь 0'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(AuraStrings.openIn('Каталог')));
+      await tester.tap(find.text(AuraStrings.openOriginal));
       await tester.pumpAndSettle();
       expect(find.text(AuraStrings.linkOpenFailed), findsOneWidget);
     });
@@ -236,12 +281,40 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(AuraStrings.sourceIs('Каталог')), findsOneWidget);
-    await tester.tap(find.text(AuraStrings.sourceIs('Каталог')));
+    expect(find.text(AuraStrings.openOriginal), findsOneWidget);
+    await tester.tap(find.text(AuraStrings.openOriginal));
     await tester.pumpAndSettle();
     expect(links.opened, [Uri.parse('https://catalog.test/track/1')]);
-    // Not a library track: no favorite heart.
-    expect(iconButton(AuraStrings.favoriteTrack), findsNothing);
+    // An online track can be a favorite: saved as a reference only.
+    await tester.tap(iconButton(AuraStrings.favoriteTrack));
+    await tester.pumpAndSettle();
+    expect(library.current.isFavorite(onlineTrack('1').id), isTrue);
+    expect(library.current.tracks, isEmpty);
+  });
+
+  testWidgets('Now Playing credits a catalog whose terms require it', (
+    tester,
+  ) async {
+    player = FakePlaybackController(
+      PlaybackSnapshot(
+        queue: [onlineTrack('1', provider: 'credited')],
+        currentIndex: 0,
+        status: PlaybackStatus.playing,
+      ),
+    );
+    await pump(tester, providers: [catalog, _CreditedCatalog()]);
+    unawaited(
+      GoRouter.of(tester.element(find.byType(AuraTabBar)))
+          .push(AppRoutes.nowPlaying),
+    );
+    await tester.pumpAndSettle();
+
+    final credit = AuraStrings.sourceCredit('Кредит');
+    expect(find.text(credit), findsOneWidget);
+    expect(find.text(AuraStrings.openOriginal), findsNothing);
+    await tester.tap(find.text(credit));
+    await tester.pumpAndSettle();
+    expect(links.opened, [Uri.parse('https://catalog.test/track/1')]);
   });
 
   for (final device in [iPhoneSE, iPhone15Landscape]) {

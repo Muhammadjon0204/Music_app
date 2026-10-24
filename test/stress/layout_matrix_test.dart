@@ -8,6 +8,7 @@ import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/home/home_screen.dart';
+import 'package:music_app/presentation/library/library_screen.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/player/mini_player_bar.dart';
 import 'package:music_app/presentation/player/now_playing_screen.dart';
@@ -106,6 +107,17 @@ void main() {
         // Library.
         await tester.tap(tabLabel('Библиотека'));
         await tester.pumpAndSettle();
+        // At the largest sizes the message sits below the History row.
+        await tester.scrollUntilVisible(
+          find.text('Библиотека пуста'),
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byType(LibraryScreen),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
         expect(find.text('Библиотека пуста'), findsOneWidget);
 
         // Now Playing: open from the mini player, scroll to the bottom.

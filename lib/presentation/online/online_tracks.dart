@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
+import 'package:music_app/application/online/online_track_lookup.dart';
+import 'package:music_app/core/error/result.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/music/track_source.dart';
@@ -14,14 +17,6 @@ import 'package:music_app/presentation/library/library_track_tile.dart';
 /// The online source of [track], if it has one.
 ProviderTrackSource? onlineSourceOf(Track track) =>
     track.sources.whereType<ProviderTrackSource>().firstOrNull;
-
-/// The provider's display name for [track] ("Audius").
-String providerNameOf(WidgetRef ref, Track track) {
-  final source = onlineSourceOf(track);
-  if (source == null) return '';
-  return ref.read(providerRegistryProvider)[source.providerId]?.displayName ??
-      source.providerId.value;
-}
 
 /// Whether AURA's player should try [track]. Unknown availability is
 /// tried: the provider decides when the stream is resolved.
@@ -64,16 +59,17 @@ Future<void> openOriginal(
   }
 }
 
-enum _OnlineAction { playNext, playLast, open }
+enum _OnlineAction { playNext, playLast, favorite, unfavorite, open }
 
 Future<void> showOnlineTrackMenu(
   BuildContext context,
   WidgetRef ref,
   Track track,
 ) async {
-  final name = providerNameOf(ref, track);
   final player = ref.read(playbackControllerProvider);
   final queueable = player != null && canPlayInApp(track);
+  final library = ref.read(libraryRepositoryProvider);
+  final favorite = library.current.isFavorite(track.id);
   final action = await showActionSheet<_OnlineAction>(
     context,
     title: track.title,
@@ -82,8 +78,16 @@ Future<void> showOnlineTrackMenu(
         SheetAction(AuraStrings.playNext, _OnlineAction.playNext),
         SheetAction(AuraStrings.playLast, _OnlineAction.playLast),
       ],
+      // Saved as a reference only; details are looked up when shown.
+      if (favorite)
+        const SheetAction(
+          AuraStrings.removeFromFavorites,
+          _OnlineAction.unfavorite,
+        )
+      else
+        const SheetAction(AuraStrings.addToFavorites, _OnlineAction.favorite),
       if (onlineSourceOf(track)?.canOpenExternally ?? false)
-        SheetAction(AuraStrings.openIn(name), _OnlineAction.open),
+        const SheetAction(AuraStrings.openOriginal, _OnlineAction.open),
     ],
   );
   if (!context.mounted) return;
@@ -92,6 +96,15 @@ Future<void> showOnlineTrackMenu(
       await player?.playNext([track]);
     case _OnlineAction.playLast:
       await player?.addToQueue([track]);
+    case _OnlineAction.favorite || _OnlineAction.unfavorite:
+      ref.read(onlineTrackCacheProvider.notifier).remember([track]);
+      final result = await library.setFavorite(
+        track.id,
+        favorite: action == _OnlineAction.favorite,
+      );
+      if (result case Err(:final failure) when context.mounted) {
+        await showFailure(context, failure);
+      }
     case _OnlineAction.open:
       await openOriginal(context, ref, track);
     case null:
@@ -118,9 +131,7 @@ class OnlineTrackTile extends ConsumerWidget {
     return LibraryTrackTile(
       track: track,
       isCurrent: track.id == currentId,
-      unavailableNote: playable
-          ? null
-          : AuraStrings.onlyIn(providerNameOf(ref, track)),
+      unavailableNote: playable ? null : AuraStrings.onlyInOriginal,
       onPressed: () => unawaited(playOnline(context, ref, list, track)),
       onMore: () => unawaited(showOnlineTrackMenu(context, ref, track)),
     );

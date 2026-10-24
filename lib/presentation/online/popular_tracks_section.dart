@@ -9,12 +9,12 @@ import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/online/online_tracks.dart';
 
-/// "Популярное в Audius" on Home: real tracks from the first provider with
-/// a popular list. Hidden when there is no such provider.
+/// "Популярное сейчас" on Home: real tracks from every provider with a
+/// popular list, mixed. Hidden when there is no such provider.
 class PopularTracksSection extends ConsumerWidget {
   const PopularTracksSection({super.key});
 
-  static const _maxItems = 20;
+  static const _maxItems = 24;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,9 +25,9 @@ class PopularTracksSection extends ConsumerWidget {
     final Widget content;
     String? title;
     if (value != null) {
-      if (value.tracks.isEmpty) return const SizedBox.shrink();
-      title = AuraStrings.popularIn(value.providerName);
-      final tracks = value.tracks.take(_maxItems).toList();
+      if (value.isEmpty) return const SizedBox.shrink();
+      title = AuraStrings.popularNow;
+      final tracks = value.take(_maxItems).toList();
       content = SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(
@@ -42,7 +42,7 @@ class PopularTracksSection extends ConsumerWidget {
                 title: track.title,
                 subtitle: canPlayInApp(track)
                     ? track.artistName ?? AuraStrings.unknownArtist
-                    : AuraStrings.onlyIn(value.providerName),
+                    : AuraStrings.onlyInOriginal,
                 image: artworkImage(
                   ref,
                   track.artworkUri,

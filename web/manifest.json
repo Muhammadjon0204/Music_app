@@ -1,6 +1,6 @@
 {
-    "name": "AURA",
-    "short_name": "AURA",
+    "name": "MusicLab",
+    "short_name": "MusicLab",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
