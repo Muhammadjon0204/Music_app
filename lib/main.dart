@@ -40,6 +40,10 @@ import 'package:music_app/data/library/sembast_listening_store.dart';
 import 'package:music_app/data/library/system_audio_file_picker.dart';
 import 'package:music_app/domain/library/library_repository.dart';
 import 'package:music_app/domain/playback/listening.dart';
+import 'package:music_app/domain/settings/app_settings.dart';
+import 'package:music_app/data/settings/in_memory_settings_store.dart';
+import 'package:music_app/data/settings/sembast_settings_store.dart';
+import 'package:music_app/application/settings/settings_providers.dart';
 import 'package:music_app/integrations/soundcloud/soundcloud_link_store.dart';
 import 'package:music_app/integrations/soundcloud/soundcloud_oembed.dart';
 import 'package:music_app/integrations/soundcloud/soundcloud_providers.dart';
@@ -80,6 +84,11 @@ Future<void> main() async {
       library is SembastLibraryRepository
       ? SembastSoundCloudLinkStore(library.database)
       : InMemorySoundCloudLinkStore();
+  // Preferences (theme, recent searches), read before the first frame.
+  final SettingsStore settingsStore = library is SembastLibraryRepository
+      ? SembastSettingsStore(library.database)
+      : InMemorySettingsStore();
+  final initialSettings = await settingsStore.load();
   final playback = EnginePlaybackController(
     engine: engine,
     resolver: TrackAudioResolver(
@@ -106,6 +115,8 @@ Future<void> main() async {
       libraryRepositoryProvider.overrideWithValue(library),
       libraryStorageFailureProvider.overrideWithValue(storageFailure),
       listeningStoreProvider.overrideWithValue(listening),
+      settingsStoreProvider.overrideWithValue(settingsStore),
+      initialSettingsProvider.overrideWithValue(initialSettings),
       // Bundled demo tones the user can add to the library on request.
       demoTracksProvider.overrideWithValue(DemoCatalog.tones),
       // Home shows the library, and the real Audius catalog next to it;

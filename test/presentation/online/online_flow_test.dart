@@ -144,17 +144,13 @@ void main() {
 
     testWidgets('the hint leads to the Library', (tester) async {
       await pump(tester);
-      await tester.scrollUntilVisible(
-        find.text(AuraStrings.tabLibrary).last,
-        200,
-        scrollable: find.byType(Scrollable).first,
+      final button = find.descendant(
+        of: find.byType(AuraButton),
+        matching: find.text(AuraStrings.tabLibrary),
       );
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AuraButton),
-          matching: find.text(AuraStrings.tabLibrary),
-        ),
-      );
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
       await tester.pumpAndSettle();
       expect(find.text(AuraStrings.libraryEmptyTitle), findsOneWidget);
     });
@@ -168,6 +164,43 @@ void main() {
       await tester.pump(SearchQueryController.debounce);
       await tester.pumpAndSettle();
     }
+
+    testWidgets('before typing: genres; a genre searches at once', (
+      tester,
+    ) async {
+      await pump(tester);
+      await tester.tap(tab(AuraStrings.tabSearch));
+      await tester.pumpAndSettle();
+      expect(find.text(AuraStrings.genres), findsOneWidget);
+      expect(find.text(AuraStrings.recentSearches), findsNothing);
+
+      await tester.tap(find.text('Джаз'));
+      await tester.pumpAndSettle();
+      expect(catalog.searches.map((s) => s.$1), ['jazz']);
+      expect(find.text('jazz 0'), findsOneWidget);
+      // The field shows what was searched.
+      expect(find.widgetWithText(CupertinoSearchTextField, 'jazz'), findsOne);
+    });
+
+    testWidgets('a query the user acted on is offered again', (tester) async {
+      await pump(tester);
+      await type(tester, 'ночь');
+      await tester.tap(find.text('ночь 0'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(CupertinoSearchTextField), '');
+      await tester.pumpAndSettle();
+      expect(find.text(AuraStrings.recentSearches), findsOneWidget);
+      await tester.tap(find.widgetWithText(AuraChip, 'ночь'));
+      await tester.pumpAndSettle();
+      expect(catalog.searches.map((s) => s.$1), ['ночь', 'ночь']);
+
+      await tester.enterText(find.byType(CupertinoSearchTextField), '');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(AuraStrings.clear));
+      await tester.pumpAndSettle();
+      expect(find.text(AuraStrings.recentSearches), findsNothing);
+    });
 
     testWidgets('online results appear in one "Онлайн" section', (
       tester,

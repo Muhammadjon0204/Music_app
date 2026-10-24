@@ -14,6 +14,7 @@ import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/player/now_playing_screen.dart';
 import 'package:music_app/presentation/player/queue_screen.dart';
 import 'package:music_app/presentation/search/search_screen.dart';
+import 'package:music_app/presentation/settings/settings_screen.dart';
 import 'package:music_app/presentation/soundcloud/soundcloud_links_screen.dart';
 import 'package:music_app/presentation/soundcloud/soundcloud_player_screen.dart';
 import 'package:music_app/presentation/shell/app_shell.dart';
@@ -79,6 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.home,
                 pageBuilder: (_, state) => _page(state, const HomeScreen()),
                 routes: [
+                  GoRoute(
+                    path: 'settings',
+                    pageBuilder: (_, state) =>
+                        _page(state, const SettingsScreen()),
+                  ),
                   if (kDebugMode)
                     GoRoute(
                       path: 'dev-gallery',

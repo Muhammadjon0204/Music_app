@@ -261,6 +261,8 @@ class AlbumScreen extends ConsumerWidget {
               borderRadius: AuraRadii.lg,
               placeholderSeed: album.title,
             ),
+            glow: artworkImage(ref, album.artworkUri),
+            seed: album.title,
           ),
           slivers: _trackSlivers(tracks),
         );
@@ -298,6 +300,7 @@ class ArtistScreen extends ConsumerWidget {
               shape: AuraArtworkShape.circle,
               placeholderSeed: artist.name,
             ),
+            seed: artist.name,
           ),
           slivers: _trackSlivers(tracks),
         );
@@ -336,6 +339,7 @@ class PlaylistScreen extends ConsumerWidget {
               borderRadius: AuraRadii.lg,
               placeholderSeed: playlist.name,
             ),
+            seed: playlist.name,
           ),
           slivers: tracks.isEmpty
               ? const [
@@ -414,13 +418,16 @@ class _PlaylistMenuButton extends ConsumerWidget {
   }
 }
 
-/// Centered artwork, title and details above an album, artist or playlist.
+/// Centered artwork, title and details above an album, artist or playlist,
+/// over a soft glow of the artwork's colors.
 class _CollectionHeader extends StatelessWidget {
   const _CollectionHeader({
     required this.title,
     required this.subtitle,
     required this.artwork,
+    required this.seed,
     this.details,
+    this.glow,
   });
 
   final String title;
@@ -428,37 +435,90 @@ class _CollectionHeader extends StatelessWidget {
   final String? details;
   final Widget artwork;
 
+  /// The cover behind the header, blurred; null uses the placeholder
+  /// gradient for [seed].
+  final ImageProvider<Object>? glow;
+  final String seed;
+
   @override
   Widget build(BuildContext context) {
+    final colors = context.auraColors;
     final text = context.auraText;
     final details = this.details;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AuraSpacing.screenHorizontal,
-        AuraSpacing.sm,
-        AuraSpacing.screenHorizontal,
-        AuraSpacing.xl,
-      ),
-      child: Column(
-        children: [
-          artwork,
-          const SizedBox(height: AuraSpacing.lg),
-          Semantics(
-            header: true,
-            child: Text(title, style: text.title1, textAlign: TextAlign.center),
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        // Clipped, so the blur does not bleed below the header.
+        Positioned.fill(
+          child: ClipRect(
+            child: Opacity(
+              opacity: 0.5,
+              child: AuraArtworkBackdrop(
+                image: glow,
+                placeholderSeed: seed,
+                blur: 48,
+              ),
+            ),
           ),
-          const SizedBox(height: AuraSpacing.xxs),
-          Text(
-            subtitle,
-            style: text.headline.copyWith(color: context.auraColors.accentText),
-            textAlign: TextAlign.center,
+        ),
+        // Fades the glow into the page.
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                // Solid at both edges, so the glow has no visible border.
+                colors: [
+                  colors.background,
+                  colors.background.withValues(alpha: 0.2),
+                  colors.background.withValues(alpha: 0.75),
+                  colors.background,
+                ],
+                stops: const [0, 0.3, 0.65, 1],
+              ),
+            ),
           ),
-          if (details != null) ...[
-            const SizedBox(height: AuraSpacing.xxs),
-            Text(details, style: text.subhead, textAlign: TextAlign.center),
-          ],
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AuraSpacing.screenHorizontal,
+            AuraSpacing.sm,
+            AuraSpacing.screenHorizontal,
+            AuraSpacing.xl,
+          ),
+          child: Column(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AuraRadii.lg),
+                  boxShadow: colors.artworkShadow,
+                ),
+                child: artwork,
+              ),
+              const SizedBox(height: AuraSpacing.xl),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: text.title1,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: AuraSpacing.xs),
+              Text(
+                subtitle,
+                style: text.headline.copyWith(color: colors.accentText),
+                textAlign: TextAlign.center,
+              ),
+              if (details != null) ...[
+                const SizedBox(height: AuraSpacing.xxs),
+                Text(details, style: text.subhead, textAlign: TextAlign.center),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

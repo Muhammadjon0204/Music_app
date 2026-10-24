@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/application/search/search_query_provider.dart';
+import 'package:music_app/application/settings/settings_providers.dart';
 import 'package:music_app/domain/library/library_search.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
@@ -69,6 +70,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         .watch(providerRegistryProvider)
         .all
         .any((p) => p is SearchableProvider);
+    if (query.isEmpty && searchesOnline) {
+      return _SearchStart(key: const ValueKey('start'), onSearch: _searchNow);
+    }
     if (query.isEmpty) {
       return AuraEmptyState(
         key: const ValueKey('hint'),
@@ -96,11 +100,29 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             : AuraStrings.searchNoResultsMessage,
       );
     }
-    return _Results(
+    // Tapping or scrolling the results means the query was useful.
+    return Listener(
       key: const ValueKey('results'),
-      results: localEmpty ? null : results,
-      online: online,
+      onPointerDown: (_) => _remember(),
+      child: _Results(results: localEmpty ? null : results, online: online),
     );
+  }
+
+  /// Runs [query] at once (a genre or a recent search) and shows it in the
+  /// field.
+  void _searchNow(String query) {
+    _controller.text = query;
+    _focusNode.unfocus();
+    ref.read(searchQueryProvider.notifier).searchNow(query);
+    ref.read(settingsProvider.notifier).addRecentSearch(query);
+  }
+
+  /// A query the user acted on is worth offering again.
+  void _remember() {
+    final query = ref.read(searchQueryProvider);
+    if (query.isNotEmpty) {
+      ref.read(settingsProvider.notifier).addRecentSearch(query);
+    }
   }
 
   @override
@@ -138,6 +160,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   onChanged: ref
                       .read(searchQueryProvider.notifier)
                       .onInputChanged,
+                  onSubmitted: (input) {
+                    ref.read(searchQueryProvider.notifier).searchNow(input);
+                    _remember();
+                  },
                 ),
               ),
               Expanded(
@@ -161,7 +187,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 class _Results extends ConsumerWidget {
-  const _Results({super.key, required this.results, required this.online});
+  const _Results({required this.results, required this.online});
 
   /// Library matches; null when there are none.
   final LibrarySearchResult? results;
@@ -289,6 +315,187 @@ class _OnlineFooter extends ConsumerWidget {
         vertical: AuraSpacing.sm,
       ),
       child: child,
+    );
+  }
+}
+
+/// A genre tile: what it is called and what it searches for.
+typedef _Genre = ({String label, String query, IconData icon});
+
+const _genres = <_Genre>[
+  (label: 'Поп', query: 'pop', icon: CupertinoIcons.star_fill),
+  (label: 'Хип-хоп', query: 'hip hop', icon: CupertinoIcons.mic_fill),
+  (label: 'Электроника', query: 'electronic', icon: CupertinoIcons.bolt_fill),
+  (label: 'Рок', query: 'rock', icon: CupertinoIcons.flame_fill),
+  (label: 'Lo-fi', query: 'lofi', icon: CupertinoIcons.moon_stars_fill),
+  (label: 'Джаз', query: 'jazz', icon: CupertinoIcons.music_note_2),
+  (label: 'Эмбиент', query: 'ambient', icon: CupertinoIcons.cloud_fill),
+  (label: 'Классика', query: 'classical', icon: CupertinoIcons.music_note_list),
+];
+
+/// Before typing: recent searches and genres, each a tap from results.
+class _SearchStart extends ConsumerWidget {
+  const _SearchStart({super.key, required this.onSearch});
+
+  final ValueChanged<String> onSearch;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recent = ref.watch(settingsProvider.select((s) => s.recentSearches));
+    return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        if (recent.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: AuraSpacing.lg),
+              child: AuraSectionHeader(
+                title: AuraStrings.recentSearches,
+                actionLabel: AuraStrings.clear,
+                onAction: ref
+                    .read(settingsProvider.notifier)
+                    .clearRecentSearches,
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AuraSpacing.screenHorizontal,
+              AuraSpacing.xs,
+              AuraSpacing.screenHorizontal,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Wrap(
+                spacing: AuraSpacing.sm,
+                runSpacing: AuraSpacing.sm,
+                children: [
+                  for (final query in recent)
+                    AuraChip(label: query, onPressed: () => onSearch(query)),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: AuraSpacing.xxl,
+              bottom: AuraSpacing.md,
+            ),
+            child: AuraSectionHeader(title: AuraStrings.genres),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AuraSpacing.screenHorizontal,
+          ),
+          sliver: SliverLayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.crossAxisExtent >= 520 ? 4 : 2;
+              return SliverGrid.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: AuraSpacing.md,
+                  crossAxisSpacing: AuraSpacing.md,
+                  // Taller tiles when the text is large.
+                  mainAxisExtent:
+                      MediaQuery.textScalerOf(context).scale(52) + 36,
+                ),
+                itemCount: _genres.length,
+                itemBuilder: (context, index) => _GenreTile(
+                  genre: _genres[index],
+                  index: index,
+                  onPressed: () => onSearch(_genres[index].query),
+                ),
+              );
+            },
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: AuraSpacing.xxxl + MediaQuery.paddingOf(context).bottom,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GenreTile extends StatelessWidget {
+  const _GenreTile({
+    required this.genre,
+    required this.index,
+    required this.onPressed,
+  });
+
+  final _Genre genre;
+  final int index;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.auraColors;
+    final gradient =
+        colors.artworkGradients[index % colors.artworkGradients.length];
+    return AuraPressable(
+      onPressed: onPressed,
+      semanticLabel: AuraStrings.searchGenre(genre.label),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AuraRadii.lg),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradient,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // A large tilted icon bleeding off the corner.
+              Positioned(
+                right: -10,
+                bottom: -12,
+                child: Transform.rotate(
+                  angle: 0.35,
+                  child: Icon(
+                    genre.icon,
+                    size: 64,
+                    color: colors.textPrimary.withValues(alpha: 0.22),
+                  ),
+                ),
+              ),
+              // Keeps the label readable on every gradient.
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        colors.background.withValues(alpha: 0.35),
+                        colors.background.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AuraSpacing.md),
+                child: ExcludeSemantics(
+                  child: Text(
+                    genre.label,
+                    style: context.auraText.title3,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

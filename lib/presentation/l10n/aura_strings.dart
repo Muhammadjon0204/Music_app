@@ -244,6 +244,33 @@ abstract final class AuraStrings {
   static const failureRateLimitedTitle = 'Слишком много запросов';
   static const failureRateLimitedMessage =
       'Сервис просит немного подождать. Попробуйте через минуту.';
+  // Settings and themes.
+  static const settings = 'Настройки';
+  static const appearance = 'Оформление';
+  static const themeNeon = 'Неон';
+  static const themeMidnight = 'Полночь';
+  static const themeRose = 'Пудра';
+  static const themeForest = 'Лес';
+  static const themeHint = 'Цвета меняются сразу и сохраняются.';
+  static const searchSettings = 'Поиск';
+  static const clearSearchHistory = 'Очистить недавние запросы';
+  static const noRecentSearches = 'Недавних запросов нет';
+  static const aboutApp = 'О приложении';
+  static const aboutMessage =
+      'MusicLab играет вашу музыку и треки из открытых каталогов Audius и '
+      'Jamendo. У каждого онлайн-трека есть ссылка на оригинал и его автора.';
+
+  // Search start page.
+  static const recentSearches = 'Недавние запросы';
+  static String removeRecentSearch(String query) => 'Удалить «$query»';
+  static const genres = 'Жанры';
+  static String searchGenre(String genre) => 'Искать: $genre';
+
+  // Home hero.
+  static const weeklyHits = 'Хиты недели';
+  static String weeklyHitsSubtitle(int count) =>
+      'Самое популярное · ${trackCount(count)}';
+
   static const failureNotFoundTitle = 'Не найдено';
   static const failureNotFoundMessage =
       'Возможно, автор удалил трек или он больше недоступен.';

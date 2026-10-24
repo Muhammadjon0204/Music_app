@@ -1,6 +1,9 @@
 export 'components/aura_artwork.dart';
+export 'components/aura_artwork_backdrop.dart';
 export 'components/aura_button.dart';
+export 'components/aura_chip.dart';
 export 'components/aura_icon_button.dart';
+export 'components/aura_icon_tile.dart';
 export 'components/aura_list_tile.dart';
 export 'components/aura_media_card.dart';
 export 'components/aura_pressable.dart';

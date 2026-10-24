@@ -8,6 +8,16 @@ import 'package:music_app/presentation/design_system/transitions/aura_page_trans
 abstract final class AuraTheme {
   static ThemeData dark() => _build(AuraColors.dark, Brightness.dark);
 
+  /// A theme for any palette; light backgrounds get a light theme (dark
+  /// status bar, light keyboard).
+  static ThemeData fromColors(AuraColors colors) =>
+      _build(colors, brightnessOf(colors));
+
+  static Brightness brightnessOf(AuraColors colors) =>
+      colors.background.computeLuminance() > 0.5
+      ? Brightness.light
+      : Brightness.dark;
+
   static ThemeData _build(AuraColors colors, Brightness brightness) {
     final typography = AuraTypography.fromColors(colors);
 

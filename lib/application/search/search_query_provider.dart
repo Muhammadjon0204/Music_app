@@ -27,6 +27,12 @@ class SearchQueryController extends Notifier<String> {
     }
     _timer = Timer(debounce, () => state = query);
   }
+
+  /// Searches [input] at once, e.g. a tapped genre or recent search.
+  void searchNow(String input) {
+    _timer?.cancel();
+    state = input.trim();
+  }
 }
 
 final searchQueryProvider = NotifierProvider<SearchQueryController, String>(

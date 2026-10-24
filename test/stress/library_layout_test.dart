@@ -99,6 +99,34 @@ void main() {
     }
   }
 
+  for (final device in [iPhone15, iPhone15Landscape, iPadMini]) {
+    testWidgets('$device: album artwork and title are centered', (
+      tester,
+    ) async {
+      // A short title: the header must not shrink to its widest line.
+      final track = Track(
+        id: const TrackId('short'),
+        title: 'Трек',
+        albumTitle: 'Альбом',
+        sources: const [LocalFileSource('library:audio/short.mp3')],
+      );
+      final library = InMemoryLibraryRepository();
+      await library.addTracks([track]);
+      await pumpAuraApp(tester, library: library, device: device);
+      final album = albumKeyOf(track)!;
+      GoRouter.of(
+        tester.element(find.byType(AuraTabBar)),
+      ).go(AppRoutes.detail(AppRoutes.library, DetailKind.album, album.value));
+      await tester.pumpAndSettle();
+
+      final page = tester.getRect(find.byType(CustomScrollView));
+      final artwork = tester.getRect(
+        find.byWidgetPredicate((w) => w is AuraArtwork && w.size == 200),
+      );
+      expect(artwork.center.dx, moreOrLessEquals(page.center.dx, epsilon: 1));
+    });
+  }
+
   for (final location in [
     AppRoutes.library,
     AppRoutes.libraryTracks,

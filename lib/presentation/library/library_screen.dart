@@ -293,22 +293,13 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.auraColors;
     return AuraListTile(
       title: title,
       subtitle: subtitle,
-      leading: Container(
-        width: AuraSizes.artworkListTile,
-        height: AuraSizes.artworkListTile,
-        decoration: BoxDecoration(
-          color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(AuraRadii.sm),
-        ),
-        child: Icon(icon, color: colors.accentText, size: AuraSizes.iconLg),
-      ),
+      leading: AuraIconTile(icon: icon),
       trailing: Icon(
         CupertinoIcons.chevron_right,
-        color: colors.textTertiary,
+        color: context.auraColors.textTertiary,
         size: AuraSizes.iconSm,
       ),
       onPressed: onPressed,

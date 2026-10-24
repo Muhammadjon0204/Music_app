@@ -276,6 +276,12 @@ class _Header extends StatelessWidget {
               color: context.auraColors.textSecondary,
               onPressed: () => unawaited(context.push(AppRoutes.devGallery)),
             ),
+          AuraIconButton(
+            icon: CupertinoIcons.gear,
+            semanticLabel: AuraStrings.settings,
+            color: context.auraColors.textSecondary,
+            onPressed: () => unawaited(context.push(AppRoutes.settings)),
+          ),
         ],
       ),
     );

@@ -12,6 +12,7 @@ class AuraSearchField extends StatelessWidget {
     this.controller,
     this.focusNode,
     this.onChanged,
+    this.onSubmitted,
   }) : onPressed = null;
 
   const AuraSearchField.button({
@@ -20,12 +21,16 @@ class AuraSearchField extends StatelessWidget {
     required VoidCallback this.onPressed,
   }) : controller = null,
        focusNode = null,
-       onChanged = null;
+       onChanged = null,
+       onSubmitted = null;
 
   final String placeholder;
   final TextEditingController? controller;
   final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
+
+  /// The keyboard's search key.
+  final ValueChanged<String>? onSubmitted;
   final VoidCallback? onPressed;
 
   @override
@@ -78,6 +83,7 @@ class AuraSearchField extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
         placeholder: placeholder,
         style: text.body,
         placeholderStyle: placeholderStyle,

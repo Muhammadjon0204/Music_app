@@ -5,7 +5,13 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 15 — Jamendo, second catalog.** Creative Commons music from
+> Status: **Phase 16 — Design system and themes.** Four color themes the
+> user picks in Settings (Neon from the design reference, plus Midnight,
+> Rose — a light theme — and Forest from the chosen palettes), saved across
+> launches and checked for WCAG AA contrast. Home opens with a "Хиты недели"
+> hero card; Search starts with genres and recent searches; album, playlist
+> and artist pages get an ambient artwork glow.
+> **Phase 15 — Jamendo, second catalog.** Creative Commons music from
 > Jamendo's official API joins the online catalog: search and "popular"
 > show both catalogs mixed in one list, without provider names; Now
 > Playing credits Jamendo with a link to the track's page, as its terms

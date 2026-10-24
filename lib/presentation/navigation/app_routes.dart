@@ -19,6 +19,8 @@ abstract final class AppRoutes {
   static const nowPlaying = '/player';
   static const queue = '/player/queue';
 
+  static const settings = '/home/settings';
+
   /// Debug builds only.
   static const devGallery = '/home/dev-gallery';
 

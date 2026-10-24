@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Color tokens. Feature widgets read them via `context.auraColors` and never
-/// hard-code colors. A light palette can be added later as another instance.
+/// hard-code colors. Each theme the user can pick is one instance; every one
+/// is checked for contrast in tests.
 @immutable
 final class AuraColors extends ThemeExtension<AuraColors> {
   const AuraColors({
@@ -42,6 +43,78 @@ final class AuraColors extends ThemeExtension<AuraColors> {
       [Color(0xFF8B5CF6), Color(0xFF1F1747)],
       [Color(0xFFFF7A59), Color(0xFFA0177F)],
       [Color(0xFF3A6FF8), Color(0xFF4A1D7A)],
+    ],
+  );
+
+  /// "Полночь": the navy palette, monochrome with a light accent.
+  static const midnight = AuraColors(
+    background: Color(0xFF06141B),
+    surface: Color(0xFF11212D),
+    surfaceElevated: Color(0xFF1A2C3A),
+    border: Color(0xFF253745),
+    borderStrong: Color(0xFF4A5C6A),
+    textPrimary: Color(0xFFE4E8E7),
+    textSecondary: Color(0xFF9BA8AB),
+    textTertiary: Color(0xFF8A979B),
+    accent: Color(0xFFCCD0CF),
+    onAccent: Color(0xFF06141B),
+    accentText: Color(0xFFCCD0CF),
+    accentSecondary: Color(0xFF4A5C6A),
+    error: Color(0xFFFF6B61),
+    brandGradient: [Color(0xFF9BA8AB), Color(0xFF253745)],
+    artworkGradients: [
+      [Color(0xFF4A5C6A), Color(0xFF06141B)],
+      [Color(0xFF253745), Color(0xFF0B1A24)],
+      [Color(0xFF6E8290), Color(0xFF253745)],
+      [Color(0xFF3E5A70), Color(0xFF11212D)],
+    ],
+  );
+
+  /// "Лес": the green palette.
+  static const forest = AuraColors(
+    background: Color(0xFF051F20),
+    surface: Color(0xFF0B2B26),
+    surfaceElevated: Color(0xFF163832),
+    border: Color(0xFF1D4239),
+    borderStrong: Color(0xFF588471),
+    textPrimary: Color(0xFFDAF1DE),
+    textSecondary: Color(0xFF8EB69B),
+    textTertiary: Color(0xFF7FA88C),
+    accent: Color(0xFF8EB69B),
+    onAccent: Color(0xFF051F20),
+    accentText: Color(0xFF8EB69B),
+    accentSecondary: Color(0xFF235347),
+    error: Color(0xFFFF6B61),
+    brandGradient: [Color(0xFF8EB69B), Color(0xFF235347)],
+    artworkGradients: [
+      [Color(0xFF235347), Color(0xFF051F20)],
+      [Color(0xFF4E8C6E), Color(0xFF163832)],
+      [Color(0xFF2F6B57), Color(0xFF0B2B26)],
+      [Color(0xFF3B7A62), Color(0xFF051F20)],
+    ],
+  );
+
+  /// "Пудра": the mauve palette, the only light theme.
+  static const rose = AuraColors(
+    background: Color(0xFFF7EFE7),
+    surface: Color(0xFFEFE2D8),
+    surfaceElevated: Color(0xFFE8D2C4),
+    border: Color(0xFFE2CCBF),
+    borderStrong: Color(0xFF9E8189),
+    textPrimary: Color(0xFF3E3239),
+    textSecondary: Color(0xFF6B5560),
+    textTertiary: Color(0xFF66525C),
+    accent: Color(0xFF6B5560),
+    onAccent: Color(0xFFF7EFE7),
+    accentText: Color(0xFF7E4F5E),
+    accentSecondary: Color(0xFF9E8189),
+    error: Color(0xFFA8231C),
+    brandGradient: [Color(0xFFC7A9A3), Color(0xFF6B5560)],
+    artworkGradients: [
+      [Color(0xFFE8D2C4), Color(0xFFC7A9A3)],
+      [Color(0xFFF2DDD3), Color(0xFFB8969B)],
+      [Color(0xFFD9BDB4), Color(0xFFAC9097)],
+      [Color(0xFFEBD8CF), Color(0xFFC7A9A3)],
     ],
   );
 
@@ -94,6 +167,11 @@ final class AuraColors extends ThemeExtension<AuraColors> {
       blurRadius: 24,
       offset: const Offset(0, 8),
     ),
+  ];
+
+  /// Depth under large artwork on detail pages; the same in every theme.
+  List<BoxShadow> get artworkShadow => const [
+    BoxShadow(color: Color(0x4D000000), blurRadius: 32, offset: Offset(0, 16)),
   ];
 
   @override
