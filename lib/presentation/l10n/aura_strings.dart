@@ -312,6 +312,12 @@ abstract final class AuraStrings {
 
   // Home hero.
   static const weeklyHits = 'Хиты недели';
+  static const weeklyHitsLabel = 'Подборка';
+  static String heroRank(int rank) => '№$rank недели';
+  static String playTrack(String title) => 'Слушать: $title';
+  static const topOfWeek = 'Топ-10 недели';
+  static const artistsOfWeek = 'Артисты недели';
+  static String findArtist(String name) => 'Найти: $name';
   static String weeklyHitsSubtitle(int count) =>
       'Самое популярное · ${trackCount(count)}';
 

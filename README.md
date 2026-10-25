@@ -5,7 +5,14 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 19 — Settings tab.** A fourth tab, "Настройки": theme,
+> Status: **Phase 20 — Faster playback and a new Home.** Switching tracks
+> silences the old one at once and always loads the new one (a web
+> playback bug replayed the previous track); Jamendo streams come from the
+> search answer, the next track is prepared in advance, and searches are
+> cached for the session. Home opens with a swipeable hero, the weekly top
+> 10, artists of the week, popular tracks and genres — all from the real
+> catalogs.
+> **Phase 19 — Settings tab.** A fourth tab, "Настройки": theme,
 > a sleep timer (15/30/45/60 min or "when the track ends", also from the
 > player), recent searches, and "Источники музыки" — an honest list of what
 > is connected (your files, Audius, Jamendo, SoundCloud by links) and why

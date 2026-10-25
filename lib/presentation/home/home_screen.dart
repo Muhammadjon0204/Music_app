@@ -18,12 +18,12 @@ import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/common/play_tracks.dart';
 import 'package:music_app/presentation/common/failure_text.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
+import 'package:music_app/presentation/home/catalog_home.dart';
 import 'package:music_app/presentation/home/greeting.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/navigation/detail_navigation.dart';
-import 'package:music_app/presentation/online/popular_tracks_section.dart';
 import 'package:music_app/presentation/online/recently_played_section.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -44,8 +44,9 @@ class HomeScreen extends ConsumerWidget {
     final List<Widget> body;
     if (value != null && value.isEmpty && hasCatalog) {
       body = const [
-        SliverToBoxAdapter(child: RecentlyPlayedSection()),
-        SliverToBoxAdapter(child: PopularTracksSection()),
+        SliverToBoxAdapter(
+          child: CatalogHome(afterHero: RecentlyPlayedSection()),
+        ),
         SliverToBoxAdapter(child: _LibraryHint()),
       ];
     } else if (value != null && value.isEmpty) {
@@ -69,9 +70,26 @@ class HomeScreen extends ConsumerWidget {
       body = [
         SliverList.list(
           children: [
-            ..._sections(context, ref, value, onPlayFeatured: onPlayFeatured),
-            const RecentlyPlayedSection(),
-            if (hasCatalog) const PopularTracksSection(),
+            if (hasCatalog)
+              // The catalog's hero opens the page; the library follows it.
+              CatalogHome(
+                afterHero: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ..._sections(
+                      context,
+                      ref,
+                      value,
+                      onPlayFeatured: onPlayFeatured,
+                    ),
+                    const RecentlyPlayedSection(),
+                  ],
+                ),
+              )
+            else ...[
+              ..._sections(context, ref, value, onPlayFeatured: onPlayFeatured),
+              const RecentlyPlayedSection(),
+            ],
           ],
         ),
       ];

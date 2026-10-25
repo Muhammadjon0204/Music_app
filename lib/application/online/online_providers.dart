@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app/application/infrastructure_providers.dart';
 import 'package:music_app/application/online/online_track_lookup.dart';
 import 'package:music_app/application/search/search_query_provider.dart';
 import 'package:music_app/core/error/app_failure.dart';
@@ -131,6 +132,52 @@ final onlineSearchProvider =
       OnlineSearchController.new,
     );
 
+/// Search answers of this session, so a query asked again (or the way
+/// back to it) shows its results at once. Memory only, briefly: catalogs
+/// change, and their terms allow no lasting copy.
+final class SearchPageCache {
+  SearchPageCache({required this._now});
+
+  static const ttl = Duration(minutes: 10);
+  static const maxPages = 100;
+
+  final DateTime Function() _now;
+  final _pages = <(ProviderId, String, int), (ProviderPage<Track>, DateTime)>{};
+
+  static (ProviderId, String, int) _key(
+    ProviderId provider,
+    String query,
+    int offset,
+  ) => (provider, query.trim().toLowerCase(), offset);
+
+  ProviderPage<Track>? get(ProviderId provider, String query, int offset) {
+    final key = _key(provider, query, offset);
+    final entry = _pages[key];
+    if (entry == null) return null;
+    if (_now().difference(entry.$2) >= ttl) {
+      _pages.remove(key);
+      return null;
+    }
+    return entry.$1;
+  }
+
+  void put(
+    ProviderId provider,
+    String query,
+    int offset,
+    ProviderPage<Track> page,
+  ) {
+    _pages[_key(provider, query, offset)] = (page, _now());
+    while (_pages.length > maxPages) {
+      _pages.remove(_pages.keys.first);
+    }
+  }
+}
+
+final searchPageCacheProvider = Provider<SearchPageCache>(
+  (ref) => SearchPageCache(now: ref.watch(clockProvider)),
+);
+
 class OnlineSearchController extends Notifier<List<OnlineSearchSection>> {
   static const pageSize = 20;
 
@@ -209,13 +256,22 @@ class OnlineSearchController extends Notifier<List<OnlineSearchSection>> {
   }) async {
     final provider = _providers[id];
     if (provider == null) return;
-    // No state access before the first await: build() calls this before
-    // its state exists.
-    final result = await provider.searchTracks(
-      _query,
-      page: PageRequest(offset: offset, limit: pageSize),
-      cancellation: cancellation,
-    );
+    final cache = ref.read(searchPageCacheProvider);
+    final cached = cache.get(id, _query, offset);
+    final Result<ProviderPage<Track>> result;
+    if (cached != null) {
+      // No state access before the first await: build() calls this before
+      // its state exists.
+      await Future<void>.value();
+      result = Ok(cached);
+    } else {
+      result = await provider.searchTracks(
+        _query,
+        page: PageRequest(offset: offset, limit: pageSize),
+        cancellation: cancellation,
+      );
+      if (result case Ok(:final value)) cache.put(id, _query, offset, value);
+    }
     // A newer query took over: its own requests own the state.
     if (cancellation.isCancelled) return;
 

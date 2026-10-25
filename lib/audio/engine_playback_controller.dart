@@ -302,6 +302,9 @@ final class EnginePlaybackController implements PlaybackController {
     final token = _loadToken;
     final cancellation = _loadCancellation = Cancellation();
     final track = _queue.current!;
+    // The previous track falls silent at once, not after the new one has
+    // been looked up (which can take seconds on a slow catalog).
+    if (_engineState.playing) unawaited(_engine.pause());
     _phase = _TrackPhase.loading;
     _location = null;
     _failure = null;
@@ -339,6 +342,7 @@ final class EnginePlaybackController implements PlaybackController {
       }
       _publish();
       if (_wantsPlay) await _engine.play();
+      _prefetchNext();
     } on AudioLoadInterrupted {
       return;
     } on AudioLoadException catch (e, stackTrace) {
@@ -355,6 +359,16 @@ final class EnginePlaybackController implements PlaybackController {
         autoAdvance: autoAdvance,
       );
     }
+  }
+
+  /// Looks up where the next track's audio is while this one plays, so a
+  /// catalog that needs a request per stream (Jamendo) answers from its
+  /// cache when the next track starts. The result itself is not kept.
+  void _prefetchNext() {
+    final next = _queue.next(_repeat, AdvanceReason.trackCompleted);
+    final track = next?.current;
+    if (track == null || next!.position == _queue.position) return;
+    unawaited(_resolve(track, Cancellation()));
   }
 
   /// During automatic advance, a track that can never play here (removed,

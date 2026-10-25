@@ -82,6 +82,10 @@ final class JustAudioEngine implements AudioEngine {
       ),
     };
     try {
+      // On the web, a new source loaded over the previous one could leave
+      // the old audio element playing; stopping first releases it, so each
+      // track starts on a clean element.
+      if (kIsWeb) await _player.stop();
       return await _player.setAudioSource(source);
     } on PlayerInterruptedException {
       throw const AudioLoadInterrupted();

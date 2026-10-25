@@ -22,8 +22,13 @@ final class JamendoProvider
         BatchTrackDetailsProvider,
         StreamingProvider,
         AttributionRequiredProvider {
-  JamendoProvider({required this._http, required this.clientId, Uri? apiBase})
-    : _apiBase = apiBase ?? Uri.parse('https://api.jamendo.com/v3.0');
+  JamendoProvider({
+    required this._http,
+    required this.clientId,
+    Uri? apiBase,
+    DateTime Function()? now,
+  }) : _apiBase = apiBase ?? Uri.parse('https://api.jamendo.com/v3.0'),
+       _now = now ?? DateTime.now;
 
   /// Largest page the API accepts.
   static const maxPageSize = 200;
@@ -33,12 +38,22 @@ final class JamendoProvider
 
   /// The API sometimes answers a valid request with an empty success (seen
   /// in about half of identical requests in October 2026). An empty answer
-  /// is asked again this many times before it is believed.
-  static const emptyRetries = 3;
+  /// is asked again this many times before it is believed. Once is enough
+  /// to catch most of them without making a real "nothing found" slow.
+  static const emptyRetries = 1;
+
+  /// How long a stream URL seen in a search or list answer is used instead
+  /// of asking the API again when the track is played.
+  static const streamUrlTtl = Duration(minutes: 5);
+  static const _maxStreamUrls = 500;
 
   final JsonHttpClient _http;
   final Uri _apiBase;
   final String clientId;
+  final DateTime Function() _now;
+
+  /// Stream URLs from recent answers, in memory only.
+  final _streamUrls = <String, (Uri, DateTime)>{};
 
   @override
   ProviderId get id => JamendoTrackMapper.providerId;
@@ -111,8 +126,9 @@ final class JamendoProvider
     return Ok(found);
   }
 
-  /// The `audio` URL of a fresh lookup: it carries a token, so it is never
-  /// stored.
+  /// The `audio` URL from a recent answer (search, popular, lookup), or of
+  /// a fresh lookup. It carries a token, so it is kept only in memory and
+  /// only for [streamUrlTtl].
   @override
   Future<Result<Uri>> streamUri(
     ExternalTrackId id, {
@@ -120,6 +136,10 @@ final class JamendoProvider
   }) async {
     if (!JamendoTrackMapper.isValidId(id.value)) {
       return const Err(NotFoundFailure(debugMessage: 'Invalid Jamendo ID'));
+    }
+    if (_streamUrls[id.value] case (final uri, final seenAt)
+        when _now().difference(seenAt) < streamUrlTtl) {
+      return Ok(uri);
     }
     final response = await _results({'id': id.value}, cancellation);
     switch (response) {
@@ -183,6 +203,7 @@ final class JamendoProvider
         Err(:final failure) => Err<List<Object?>>(failure),
         Ok(:final value) => _parse(value),
       };
+      if (results case Ok(:final value)) _rememberStreams(value);
       if (results case Ok(:final value)
           when value.isEmpty && attempt < emptyRetries) {
         if (cancellation?.isCancelled ?? false) {
@@ -191,6 +212,19 @@ final class JamendoProvider
         continue;
       }
       return results;
+    }
+  }
+
+  void _rememberStreams(List<Object?> items) {
+    final now = _now();
+    for (final item in items) {
+      if (item is! Map<String, Object?>) continue;
+      final id = item['id'];
+      final uri = JamendoTrackMapper.streamUriOf(item);
+      if (id is String && uri != null) _streamUrls[id] = (uri, now);
+    }
+    while (_streamUrls.length > _maxStreamUrls) {
+      _streamUrls.remove(_streamUrls.keys.first);
     }
   }
 

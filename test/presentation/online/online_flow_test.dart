@@ -11,12 +11,15 @@ import 'package:music_app/core/error/result.dart';
 import 'package:music_app/data/library/in_memory_library_repository.dart';
 import 'package:music_app/data/library/library_home_feed_source.dart';
 import 'package:music_app/domain/music/ids.dart';
+import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/home/home_screen.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
+import 'package:music_app/presentation/search/search_screen.dart';
 
 import '../../helpers/aura_app_harness.dart';
 import '../../helpers/fake_providers.dart';
@@ -90,23 +93,64 @@ void main() {
   }
 
   group('Home', () {
+    /// The Home page's own vertical list.
+    Finder homeList() => find
+        .descendant(
+          of: find.byType(HomeScreen),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+
+    /// [finder] after scrolling Home until it is on screen.
+    Future<Finder> scrollTo(WidgetTester tester, Finder finder) async {
+      await tester.scrollUntilVisible(finder, 300, scrollable: homeList());
+      await tester.pumpAndSettle();
+      return finder;
+    }
+
+    Finder card(String title) => find.descendant(
+      of: find.byType(AuraMediaCard),
+      matching: find.text(title),
+    );
+
     testWidgets('an empty library shows the real catalog and an import hint', (
       tester,
     ) async {
       await pump(tester);
-      expect(find.text(AuraStrings.popularNow), findsOneWidget);
-      expect(find.text('Online 1'), findsOneWidget);
-      expect(find.text(AuraStrings.homeLibraryHintTitle), findsOneWidget);
+      expect(find.text(AuraStrings.weeklyHits), findsOneWidget);
+      expect(find.text(AuraStrings.topOfWeek), findsOneWidget);
+      expect(find.text('Online 1'), findsWidgets);
+      await scrollTo(tester, find.text(AuraStrings.popularNow));
+      await scrollTo(tester, find.text(AuraStrings.homeLibraryHintTitle));
       // No sample (demo) content.
       expect(find.text(AuraStrings.demoBadge), findsNothing);
       expect(find.text(AuraStrings.homeEmptyTitle), findsNothing);
+    });
+
+    testWidgets('the hero plays the whole list; a top track plays from it', (
+      tester,
+    ) async {
+      await pump(tester);
+      await tester.tap(
+        iconButton(AuraStrings.playPlaylist(AuraStrings.weeklyHits)),
+      );
+      await tester.pumpAndSettle();
+      expect(player.lastQueue!.map((t) => t.title), ['Online 1', 'Online 3']);
+      expect(player.lastStartIndex, 0);
+
+      // The chart's third row: link-only tracks are left out of the queue.
+      final chartRow = find.text('3').first;
+      await tester.tap(chartRow);
+      await tester.pumpAndSettle();
+      expect(player.lastStartIndex, 1);
+      expect(links.opened, isEmpty);
     });
 
     testWidgets('a card plays the list, skipping link-only tracks', (
       tester,
     ) async {
       await pump(tester);
-      await tester.tap(find.text('Online 3'));
+      await tester.tap(await scrollTo(tester, card('Online 3')));
       await tester.pumpAndSettle();
 
       expect(player.lastQueue!.map((t) => t.title), ['Online 1', 'Online 3']);
@@ -119,12 +163,26 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      expect(find.text(AuraStrings.onlyInOriginal), findsOneWidget);
-      await tester.tap(find.text('Online 2'));
+      await tester.tap(await scrollTo(tester, card('Online 2')));
       await tester.pumpAndSettle();
 
       expect(links.opened, [Uri.parse('https://catalog.test/track/2')]);
       expect(player.playCalls, 0);
+    });
+
+    testWidgets('an artist of the week opens Search for that artist', (
+      tester,
+    ) async {
+      await pump(tester);
+      final artist = find.bySemanticsLabel(AuraStrings.findArtist('Artist 3'));
+      await tester.tap(await scrollTo(tester, artist));
+      await tester.pumpAndSettle();
+      expect(find.byType(SearchScreen), findsOneWidget);
+      expect(
+        find.widgetWithText(CupertinoSearchTextField, 'Artist 3'),
+        findsOneWidget,
+      );
+      expect(catalog.searches.map((s) => s.$1), ['Artist 3']);
     });
 
     testWidgets('a catalog failure shows a retry, never fake tracks', (
@@ -138,18 +196,55 @@ void main() {
       catalog.popular = () async => Ok(ProviderPage(items: _popular));
       await tester.tap(find.text(AuraStrings.retry));
       await tester.pumpAndSettle();
-      expect(find.text('Online 1'), findsOneWidget);
+      expect(find.text('Online 1'), findsWidgets);
       expect(catalog.popularCalls, 2);
+    });
+
+    Track localTrack() => Track(
+      id: const TrackId('local'),
+      title: 'Своя песня',
+      albumTitle: 'Свой альбом',
+      artistName: 'Я',
+      addedAt: DateTime(2026),
+      sources: const [LocalFileSource('library:audio/local.mp3')],
+    );
+
+    testWidgets('with music in the library, the hero still comes first', (
+      tester,
+    ) async {
+      await pump(tester);
+      await library.addTracks([localTrack()]);
+      await tester.pumpAndSettle();
+
+      // Both sit in one column, so both are laid out: compare positions.
+      expect(
+        tester.getTopLeft(find.text(AuraStrings.weeklyHits)).dy,
+        lessThan(
+          tester.getTopLeft(find.text(AuraStrings.homeRecentlyAdded)).dy,
+        ),
+      );
+    });
+
+    testWidgets('the library shows even when the catalog fails', (
+      tester,
+    ) async {
+      catalog.popular = () async => const Err(NetworkFailure());
+      await pump(tester);
+      await library.addTracks([localTrack()]);
+      await tester.pumpAndSettle();
+      expect(find.text(AuraStrings.failureNetworkTitle), findsOneWidget);
+      await scrollTo(tester, find.text(AuraStrings.homeRecentlyAdded));
     });
 
     testWidgets('the hint leads to the Library', (tester) async {
       await pump(tester);
-      final button = find.descendant(
-        of: find.byType(AuraButton),
-        matching: find.text(AuraStrings.tabLibrary),
+      final button = await scrollTo(
+        tester,
+        find.descendant(
+          of: find.byType(AuraButton),
+          matching: find.text(AuraStrings.tabLibrary),
+        ),
       );
-      await tester.ensureVisible(button);
-      await tester.pumpAndSettle();
       await tester.tap(button);
       await tester.pumpAndSettle();
       expect(find.text(AuraStrings.libraryEmptyTitle), findsOneWidget);
@@ -193,7 +288,9 @@ void main() {
       expect(find.text(AuraStrings.recentSearches), findsOneWidget);
       await tester.tap(find.widgetWithText(AuraChip, 'ночь'));
       await tester.pumpAndSettle();
-      expect(catalog.searches.map((s) => s.$1), ['ночь', 'ночь']);
+      // Asked again within minutes: answered from the session cache.
+      expect(catalog.searches.map((s) => s.$1), ['ночь']);
+      expect(find.text('ночь 0'), findsOneWidget);
 
       await tester.enterText(find.byType(CupertinoSearchTextField), '');
       await tester.pumpAndSettle();

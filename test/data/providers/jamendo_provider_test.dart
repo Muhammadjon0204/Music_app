@@ -50,12 +50,15 @@ void main() {
   late List<Uri> requests;
   late List<Map<String, Object?>> Function(Uri uri) answers;
   late JamendoProvider jamendo;
+  late DateTime now;
 
   setUp(() {
     requests = [];
     answers = (_) => [_answer(const [])];
+    now = DateTime(2026, 10, 25, 12);
     jamendo = JamendoProvider(
       clientId: 'test-client',
+      now: () => now,
       http: JsonHttpClient(
         client: MockClient((request) async {
           final i = requests.where((u) => u == request.url).length;
@@ -262,5 +265,32 @@ void main() {
   test('requires credit next to its tracks', () {
     expect(jamendo, isA<AttributionRequiredProvider>());
     expect(jamendo.displayName, 'Jamendo');
+  });
+
+  test('a stream seen in search plays without asking again', () async {
+    answers = (_) => [
+      _answer([jamendoTrackJson(id: '1214935')]),
+    ];
+    await jamendo.searchTracks('wish');
+    requests.clear();
+
+    final result = await jamendo.streamUri(const ExternalTrackId('1214935'));
+    expect((result as Ok<Uri>).value.host, 'prod-1.storage.jamendo.com');
+    expect(requests, isEmpty);
+    // Asked again (e.g. prefetch, then play): still from memory.
+    await jamendo.streamUri(const ExternalTrackId('1214935'));
+    expect(requests, isEmpty);
+  });
+
+  test('a remembered stream expires', () async {
+    answers = (_) => [
+      _answer([jamendoTrackJson(id: '1214935')]),
+    ];
+    await jamendo.searchTracks('wish');
+    requests.clear();
+    now = now.add(JamendoProvider.streamUrlTtl);
+
+    await jamendo.streamUri(const ExternalTrackId('1214935'));
+    expect(requests.single.queryParameters['id'], '1214935');
   });
 }
