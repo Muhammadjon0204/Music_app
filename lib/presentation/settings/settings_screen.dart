@@ -1,14 +1,21 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:music_app/application/playback/sleep_timer.dart';
 import 'package:music_app/application/settings/settings_providers.dart';
 import 'package:music_app/domain/settings/app_settings.dart';
+import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
-import 'package:music_app/presentation/library/library_page.dart';
+import 'package:music_app/presentation/navigation/app_routes.dart';
+import 'package:music_app/presentation/player/sleep_timer_sheet.dart';
 import 'package:music_app/presentation/settings/theme_choices.dart';
 
-/// Theme choice, recent searches and what the app is. Only settings that
-/// really do something.
+/// The Settings tab: theme, sleep timer, music sources, recent searches
+/// and what the app is. Only settings that really do something.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -16,6 +23,8 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final controller = ref.read(settingsProvider.notifier);
+    final sleep = ref.watch(sleepTimerProvider);
+    final colors = context.auraColors;
     final text = context.auraText;
 
     Widget section(String title) => Padding(
@@ -25,50 +34,103 @@ class SettingsScreen extends ConsumerWidget {
       ),
       child: AuraSectionHeader(title: title),
     );
+    final chevron = Icon(
+      CupertinoIcons.chevron_right,
+      color: colors.textTertiary,
+      size: AuraSizes.iconSm,
+    );
 
-    return LibraryPage(
-      title: AuraStrings.settings,
-      slivers: [
-        SliverList.list(
-          children: [
-            section(AuraStrings.appearance),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AuraSpacing.screenHorizontal,
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: ContentWidth(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AuraSpacing.screenHorizontal,
+                    AuraSpacing.lg,
+                    AuraSpacing.screenHorizontal,
+                    0,
+                  ),
+                  child: Semantics(
+                    header: true,
+                    child: Text(AuraStrings.settings, style: text.largeTitle),
+                  ),
+                ),
               ),
-              child: Text(AuraStrings.themeHint, style: text.subhead),
-            ),
-            const SizedBox(height: AuraSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AuraSpacing.screenHorizontal,
+              SliverList.list(
+                children: [
+                  section(AuraStrings.appearance),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AuraSpacing.screenHorizontal,
+                    ),
+                    child: Text(AuraStrings.themeHint, style: text.subhead),
+                  ),
+                  const SizedBox(height: AuraSpacing.md),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AuraSpacing.screenHorizontal,
+                    ),
+                    child: _ThemeGrid(
+                      selected: settings.theme,
+                      onSelected: controller.selectTheme,
+                    ),
+                  ),
+                  section(AuraStrings.playbackSettings),
+                  AuraListTile(
+                    title: AuraStrings.sleepTimer,
+                    subtitle: sleepTimerStatus(sleep),
+                    leading: AuraIconTile(
+                      icon: sleep.isActive
+                          ? CupertinoIcons.moon_zzz_fill
+                          : CupertinoIcons.moon_zzz,
+                    ),
+                    trailing: chevron,
+                    onPressed: () =>
+                        unawaited(showSleepTimerSheet(context, ref)),
+                  ),
+                  section(AuraStrings.musicSources),
+                  AuraListTile(
+                    title: AuraStrings.connections,
+                    subtitle: AuraStrings.musicSourcesHint,
+                    leading: const AuraIconTile(
+                      icon: CupertinoIcons.antenna_radiowaves_left_right,
+                    ),
+                    trailing: chevron,
+                    onPressed: () =>
+                        unawaited(context.push(AppRoutes.settingsSources)),
+                  ),
+                  section(AuraStrings.searchSettings),
+                  AuraListTile(
+                    title: AuraStrings.clearSearchHistory,
+                    subtitle: settings.recentSearches.isEmpty
+                        ? AuraStrings.noRecentSearches
+                        : AuraStrings.recentSearches,
+                    leading: const AuraIconTile(icon: CupertinoIcons.clock),
+                    onPressed: settings.recentSearches.isEmpty
+                        ? null
+                        : controller.clearRecentSearches,
+                  ),
+                  section(AuraStrings.aboutApp),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AuraSpacing.screenHorizontal,
+                    ),
+                    child: Text(AuraStrings.aboutMessage, style: text.subhead),
+                  ),
+                  SizedBox(
+                    height:
+                        AuraSpacing.xxxl + MediaQuery.paddingOf(context).bottom,
+                  ),
+                ],
               ),
-              child: _ThemeGrid(
-                selected: settings.theme,
-                onSelected: controller.selectTheme,
-              ),
-            ),
-            section(AuraStrings.searchSettings),
-            AuraListTile(
-              title: AuraStrings.clearSearchHistory,
-              subtitle: settings.recentSearches.isEmpty
-                  ? AuraStrings.noRecentSearches
-                  : AuraStrings.recentSearches,
-              leading: const AuraIconTile(icon: CupertinoIcons.clock),
-              onPressed: settings.recentSearches.isEmpty
-                  ? null
-                  : controller.clearRecentSearches,
-            ),
-            section(AuraStrings.aboutApp),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AuraSpacing.screenHorizontal,
-              ),
-              child: Text(AuraStrings.aboutMessage, style: text.subhead),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }

@@ -33,6 +33,11 @@ class AppShell extends ConsumerWidget {
       selectedIcon: CupertinoIcons.music_albums_fill,
       label: AuraStrings.tabLibrary,
     ),
+    AuraTabItem(
+      icon: CupertinoIcons.gear,
+      selectedIcon: CupertinoIcons.gear_solid,
+      label: AuraStrings.settings,
+    ),
   ];
 
   @override

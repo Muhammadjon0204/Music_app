@@ -415,6 +415,40 @@ void main() {
     await player.dispose();
   });
 
+  testWidgets('sleep timer from the player: pause when the track ends', (
+    tester,
+  ) async {
+    final player = await pumpWithPlayer(tester);
+    await loadHits(tester, player);
+    await player.play();
+    await tester.pump();
+    await openNowPlaying(tester);
+
+    await tester.tap(
+      iconButton('${AuraStrings.sleepTimer}: ${AuraStrings.sleepOff}'),
+    );
+    await tester.pump();
+    await tester.pump(sheetTime);
+    await tester.tap(find.text(AuraStrings.sleepAfterTrack));
+    await tester.pump();
+    await tester.pump(sheetTime);
+    expect(
+      iconButton('${AuraStrings.sleepTimer}: ${AuraStrings.sleepAfterTrack}'),
+      findsOneWidget,
+    );
+
+    await player.skipToNext();
+    await tester.pump();
+    await tester.pump();
+    expect(player.snapshot.playWhenReady, isFalse);
+    expect(
+      iconButton('${AuraStrings.sleepTimer}: ${AuraStrings.sleepOff}'),
+      findsOneWidget,
+    );
+    await tester.pump(sheetTime);
+    await player.dispose();
+  });
+
   testWidgets('queue lists now playing and up next; a tap jumps', (
     tester,
   ) async {

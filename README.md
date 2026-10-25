@@ -5,7 +5,12 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 18 — Release prep.** App icon and launch screen in the
+> Status: **Phase 19 — Settings tab.** A fourth tab, "Настройки": theme,
+> a sleep timer (15/30/45/60 min or "when the track ends", also from the
+> player), recent searches, and "Источники музыки" — an honest list of what
+> is connected (your files, Audius, Jamendo, SoundCloud by links) and why
+> Spotify and YouTube Music are not.
+> **Phase 18 — Release prep.** App icon and launch screen in the
 > app's colors, privacy manifest, real bundle ID, and a TestFlight workflow
 > that builds and uploads a signed release from GitHub Actions.
 > **Phase 17 — Player.** Now Playing takes its colors from the

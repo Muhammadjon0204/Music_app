@@ -256,6 +256,47 @@ abstract final class AuraStrings {
   static const themeForest = 'Лес';
   static const themeHint = 'Цвета меняются сразу и сохраняются.';
   static const searchSettings = 'Поиск';
+  static const playbackSettings = 'Воспроизведение';
+
+  // Sleep timer.
+  static const sleepTimer = 'Таймер сна';
+  static const sleepOff = 'Выключен';
+  static const sleepAfterTrack = 'Когда закончится трек';
+  static String sleepUntil(String time) => 'Пауза в $time';
+  static String sleepIn(int minutes) =>
+      minutes == 60 ? 'Через час' : 'Через $minutes минут';
+  static const sleepTurnOff = 'Выключить таймер';
+
+  // Music sources.
+  static const musicSources = 'Источники музыки';
+  static const musicSourcesHint = 'Откуда MusicLab берёт музыку';
+  static const connections = 'Подключения';
+  static const sourceConnected = 'Подключено';
+  static const sourceByLinks = 'По ссылкам';
+  static const sourceNotYet = 'Пока недоступно';
+  static const sourceUnavailable = 'Недоступно';
+  static const sourceLocal = 'Ваши файлы';
+  static const sourceLocalDescription =
+      'Аудиофайлы, которые вы импортируете в Библиотеку. Играют без '
+      'интернета.';
+  static const sourceCatalogDescription =
+      'Открытый каталог: поиск, популярное и воспроизведение прямо в '
+      'MusicLab.';
+  static const sourceCatalogCredited =
+      'Музыка по лицензии Creative Commons: поиск и воспроизведение в '
+      'MusicLab. Источник и автор указываются в плеере.';
+  static const sourceSoundCloudDescription =
+      'Вставьте ссылку на трек, плейлист или профиль — играет официальный '
+      'плеер SoundCloud. Вход в аккаунт и поиск появятся, когда приложение '
+      'будет зарегистрировано в SoundCloud.';
+  static const sourceSpotifyDescription =
+      'Spotify не разрешает играть свою музыку в других плеерах. Подключение '
+      'даст только перенос ваших плейлистов, и пока им смогут пользоваться '
+      'не больше 5 человек. Появится отдельным обновлением.';
+  static const sourceYouTubeMusicDescription =
+      'У YouTube Music нет официального способа подключить сторонний плеер. '
+      'Неофициальные способы нарушают правила Google, поэтому MusicLab их '
+      'не использует.';
   static const clearSearchHistory = 'Очистить недавние запросы';
   static const noRecentSearches = 'Недавних запросов нет';
   static const aboutApp = 'О приложении';

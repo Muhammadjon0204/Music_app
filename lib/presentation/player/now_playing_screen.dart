@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_app/application/library/library_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
+import 'package:music_app/application/playback/sleep_timer.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track.dart';
@@ -27,6 +28,7 @@ import 'package:music_app/presentation/player/artwork_colors.dart';
 import 'package:music_app/presentation/player/play_pause_button.dart';
 import 'package:music_app/presentation/player/player_palette.dart';
 import 'package:music_app/presentation/player/player_progress.dart';
+import 'package:music_app/presentation/player/sleep_timer_sheet.dart';
 import 'package:music_app/presentation/player/swipe_down_to_dismiss.dart';
 
 class NowPlayingScreen extends ConsumerWidget {
@@ -55,7 +57,7 @@ class NowPlayingScreen extends ConsumerWidget {
         body: SafeArea(
           child: Column(
             children: [
-              _TopBar(onClose: close, isSilent: false),
+              _TopBar(onClose: close, isSilent: false, showSleepTimer: false),
               const Expanded(
                 child: AuraEmptyState(
                   icon: CupertinoIcons.music_note,
@@ -244,14 +246,22 @@ class _PlayerBackgroundState extends ConsumerState<_PlayerBackground> {
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose, required this.isSilent});
+class _TopBar extends ConsumerWidget {
+  const _TopBar({
+    required this.onClose,
+    required this.isSilent,
+    this.showSleepTimer = true,
+  });
 
   final VoidCallback onClose;
   final bool isSilent;
 
+  /// The sleep timer button on the right; hidden when nothing plays.
+  final bool showSleepTimer;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sleep = ref.watch(sleepTimerProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AuraSpacing.sm),
       child: Row(
@@ -262,7 +272,21 @@ class _TopBar extends StatelessWidget {
             onPressed: onClose,
           ),
           Expanded(child: Center(child: isSilent ? const _SilentChip() : null)),
-          const SizedBox(width: AuraSizes.minTouchTarget),
+          if (showSleepTimer)
+            AuraIconButton(
+              icon: sleep.isActive
+                  ? CupertinoIcons.moon_zzz_fill
+                  : CupertinoIcons.moon_zzz,
+              semanticLabel:
+                  '${AuraStrings.sleepTimer}: ${sleepTimerStatus(sleep)}',
+              toggled: sleep.isActive,
+              color: sleep.isActive
+                  ? context.auraColors.accentText
+                  : context.auraColors.textSecondary,
+              onPressed: () => unawaited(showSleepTimerSheet(context, ref)),
+            )
+          else
+            const SizedBox(width: AuraSizes.minTouchTarget),
         ],
       ),
     );
