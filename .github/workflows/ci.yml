@@ -80,3 +80,8 @@ jobs:
       # A simulator build needs no code signing, so no secrets are involved.
       - name: Build for iOS Simulator
         run: flutter build ios --simulator --debug
+
+      # The release configuration TestFlight uses, minus signing: catches
+      # release-only build problems before an upload is attempted.
+      - name: Build release (unsigned)
+        run: flutter build ios --release --no-codesign

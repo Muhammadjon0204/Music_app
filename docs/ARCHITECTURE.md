@@ -565,6 +565,25 @@ ID с префиксом `demo-`, `HomeFeed.isDemo = true`. Главная по�
 - «Сохранить очередь как плейлист» из референса не сделано: плейлисты
   хранят только треки библиотеки, онлайн-треки из очереди потерялись бы.
 
+## 11l. Подготовка к выпуску (Phase 18)
+
+- **Иконка и экран запуска.** Столбики эквалайзера в градиенте розовый →
+  фиолетовый на тёмном фоне со свечением; все размеры `AppIcon` и веб-иконки
+  нарисованы из одного мастера 1024×1024 (непрозрачного, как требует iOS).
+  `LaunchScreen.storyboard`: фон `#0B0B10`, те же столбики по центру.
+- **Release-настройки:** Bundle ID `com.muhammadjon0204.musiclab`,
+  `CFBundleName` = MusicLab, `ITSAppUsesNonExemptEncryption = false` (только
+  HTTPS), `PrivacyInfo.xcprivacy` (без слежения и сбора данных; причина
+  `C617.1` для меток времени файлов в контейнере приложения).
+- **TestFlight** (`.github/workflows/testflight.yml`, вручную):
+  `flutter build ios --config-only` (номер сборки = номер запуска,
+  JAMENDO_CLIENT_ID из секрета) → `xcodebuild archive` с автоматической
+  облачной подписью по ключу App Store Connect API → `-exportArchive` с
+  `ios/ExportOptions.plist` (`destination = upload`) — загрузка сразу в
+  App Store Connect. Ключ `.p8` существует только во временной папке
+  раннера и удаляется в конце. Настройка — `docs/RELEASE.md`.
+- **CI** дополнительно собирает release без подписи.
+
 ## 12. Строки и язык
 
 Интерфейс на русском: `MaterialApp` с `locale: ru` и

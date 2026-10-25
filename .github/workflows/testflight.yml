@@ -1,0 +1,109 @@
+name: TestFlight
+
+# Builds a signed release and uploads it to App Store Connect, where it
+# appears in TestFlight. Started by hand (Actions → TestFlight → Run
+# workflow). Setup and the secrets it needs: docs/RELEASE.md.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One upload at a time; never cancel one that is running.
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: 3.47.7
+
+jobs:
+  upload:
+    name: Build and upload to TestFlight
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Fails early, by name, instead of deep inside xcodebuild.
+      - name: Check secrets
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          missing=0
+          for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing secret::$name is not set (see docs/RELEASE.md)"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - uses: ./.github/actions/setup-flutter
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      # The key lives only in the runner's temp folder and is deleted at
+      # the end; it is never printed.
+      - name: App Store Connect API key
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s\n' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/asc/AuthKey.p8"
+
+      # Writes the Flutter build settings (release mode, build number,
+      # Jamendo client ID) for xcodebuild; Dart is compiled during the
+      # archive. The build number is the run number, so it always grows.
+      - name: Configure release build
+        env:
+          JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
+        run: >-
+          flutter build ios --config-only --release
+          --build-number=${{ github.run_number }}
+          --dart-define=JAMENDO_CLIENT_ID="$JAMENDO_CLIENT_ID"
+
+      # Automatic signing: with the API key, Xcode creates or fetches the
+      # certificate and provisioning profile itself (cloud signing).
+      - name: Archive
+        run: >-
+          xcodebuild archive
+          -workspace ios/Runner.xcworkspace
+          -scheme Runner
+          -configuration Release
+          -destination 'generic/platform=iOS'
+          -archivePath "$RUNNER_TEMP/MusicLab.xcarchive"
+          -allowProvisioningUpdates
+          -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey.p8"
+          -authenticationKeyID "$ASC_KEY_ID"
+          -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          CODE_SIGN_STYLE=Automatic
+
+      # ios/ExportOptions.plist has destination "upload": exporting sends
+      # the build straight to App Store Connect.
+      - name: Export and upload
+        run: >-
+          xcodebuild -exportArchive
+          -archivePath "$RUNNER_TEMP/MusicLab.xcarchive"
+          -exportOptionsPlist ios/ExportOptions.plist
+          -exportPath "$RUNNER_TEMP/export"
+          -allowProvisioningUpdates
+          -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey.p8"
+          -authenticationKeyID "$ASC_KEY_ID"
+          -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Remove the API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"

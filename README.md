@@ -5,7 +5,10 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 17 — Player.** Now Playing takes its colors from the
+> Status: **Phase 18 — Release prep.** App icon and launch screen in the
+> app's colors, privacy manifest, real bundle ID, and a TestFlight workflow
+> that builds and uploads a signed release from GitHub Actions.
+> **Phase 17 — Player.** Now Playing takes its colors from the
 > real cover (kept readable over any cover in every theme), the cover eases
 > back while paused and a swipe on it changes the track; "Далее" shows what
 > plays next. The queue has "Текущая" and "Недавние" tabs, a highlighted
@@ -148,9 +151,17 @@ testing on a physical iPhone (background audio, lock screen, Bluetooth).
 
 - Dart package name: `music_app` (technical, not user-visible)
 - Display name: `MusicLab`
-- iOS bundle ID / Android application ID: `com.example.*` placeholders —
-  must be replaced with a real reverse-domain ID before any TestFlight or
-  store build.
+- iOS bundle ID: `com.muhammadjon0204.musiclab` (can change until the app
+  is created in App Store Connect; see `docs/RELEASE.md`)
+- Android application ID: `com.example.music_app` placeholder — not
+  released yet.
+
+## Releasing to TestFlight
+
+The **TestFlight** workflow builds a signed release on a GitHub macOS
+runner and uploads it to App Store Connect; no local Mac is needed.
+One-time setup (Apple Developer account, App Store Connect app, API key,
+GitHub secrets): [`docs/RELEASE.md`](docs/RELEASE.md).
 
 ## Secrets
 
