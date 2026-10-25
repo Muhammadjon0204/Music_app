@@ -119,6 +119,7 @@ class MiniPlayerBar extends StatelessWidget {
                       AuraIconButton(
                         icon: CupertinoIcons.forward_fill,
                         semanticLabel: AuraStrings.nextTrack,
+                        haptic: true,
                         onPressed: onNext,
                       ),
                     ],

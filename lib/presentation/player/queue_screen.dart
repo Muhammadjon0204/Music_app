@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_app/application/playback/listening_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/playback/playback_controller.dart';
@@ -12,58 +13,29 @@ import 'package:music_app/domain/playback/playback_snapshot.dart';
 import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/common/duration_format.dart';
+import 'package:music_app/presentation/library/history_screen.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/library/mixed_track_list.dart';
 
-/// The current track and what plays next, in play order. Tapping a track
-/// jumps to it.
-class QueueScreen extends ConsumerWidget {
+enum _QueueTab { current, recent }
+
+/// "Текущая": the current track and what plays next, in play order (tap
+/// to jump, drag to reorder, clear what is left). "Недавние": what was
+/// played lately, to play again.
+class QueueScreen extends ConsumerStatefulWidget {
   const QueueScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final snapshot =
-        ref.watch(playbackSnapshotProvider).value ?? PlaybackSnapshot.initial;
-    final controller = ref.watch(playbackControllerProvider);
-    final current = snapshot.currentTrack;
-    final currentIndex = snapshot.currentIndex ?? -1;
-    final upcoming = snapshot.queue.skip(currentIndex + 1).toList();
-    final text = context.auraText;
+  ConsumerState<QueueScreen> createState() => _QueueScreenState();
+}
 
-    Widget tile(
-      Track track, {
-      required bool active,
-      VoidCallback? onTap,
-      Widget? trailing,
-    }) {
-      final duration = track.duration;
-      return AuraListTile(
-        title: track.title,
-        subtitle: track.artistName ?? AuraStrings.unknownArtist,
-        isActive: active,
-        leading: AuraArtwork(
-          size: AuraSizes.artworkListTile,
-          image: artworkImage(
-            ref,
-            track.artworkUri,
-            alternatives: track.artworkAlternatives,
-          ),
-          placeholderSeed: track.title,
-        ),
-        trailing:
-            trailing ??
-            (active
-                ? Icon(
-                    CupertinoIcons.speaker_2_fill,
-                    size: AuraSizes.iconMd,
-                    color: context.auraColors.accentText,
-                  )
-                : duration == null
-                ? null
-                : Text(formatDuration(duration), style: text.numeric)),
-        onPressed: onTap,
-      );
-    }
+class _QueueScreenState extends ConsumerState<QueueScreen> {
+  var _tab = _QueueTab.current;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.auraText;
 
     return Scaffold(
       body: SafeArea(
@@ -100,49 +72,28 @@ class QueueScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    if (current != null) ...[
-                      const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: AuraSpacing.xxl),
-                          child: AuraSectionHeader(
-                            title: AuraStrings.nowPlaying,
-                          ),
-                        ),
-                      ),
-                      SliverToBoxAdapter(child: tile(current, active: true)),
-                    ],
-                    const SliverToBoxAdapter(
+                    SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.only(top: AuraSpacing.xxl),
-                        child: AuraSectionHeader(title: AuraStrings.upNext),
+                        padding: const EdgeInsets.fromLTRB(
+                          AuraSpacing.screenHorizontal,
+                          AuraSpacing.lg,
+                          AuraSpacing.screenHorizontal,
+                          0,
+                        ),
+                        child: AuraSegmentedControl<_QueueTab>(
+                          segments: const [
+                            (_QueueTab.current, AuraStrings.queueCurrent),
+                            (_QueueTab.recent, AuraStrings.queueRecent),
+                          ],
+                          selected: _tab,
+                          onSelected: (tab) => setState(() => _tab = tab),
+                        ),
                       ),
                     ),
-                    if (upcoming.isEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AuraSpacing.screenHorizontal,
-                            vertical: AuraSpacing.md,
-                          ),
-                          child: Text(
-                            AuraStrings.queueEnd,
-                            style: text.subhead,
-                          ),
-                        ),
-                      )
-                    else if (controller == null)
-                      SliverList.builder(
-                        itemCount: upcoming.length,
-                        itemBuilder: (context, i) =>
-                            tile(upcoming[i], active: false),
-                      )
-                    else
-                      _UpcomingList(
-                        upcoming: upcoming,
-                        firstIndex: currentIndex + 1,
-                        controller: controller,
-                        tile: tile,
-                      ),
+                    ...switch (_tab) {
+                      _QueueTab.current => _currentSlivers(context),
+                      _QueueTab.recent => _recentSlivers(),
+                    },
                     SliverToBoxAdapter(
                       child: SizedBox(
                         height:
@@ -157,6 +108,179 @@ class QueueScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  List<Widget> _currentSlivers(BuildContext context) {
+    final snapshot =
+        ref.watch(playbackSnapshotProvider).value ?? PlaybackSnapshot.initial;
+    final controller = ref.watch(playbackControllerProvider);
+    final current = snapshot.currentTrack;
+    final currentIndex = snapshot.currentIndex ?? -1;
+    final upcoming = snapshot.queue.skip(currentIndex + 1).toList();
+    final colors = context.auraColors;
+    final text = context.auraText;
+
+    Widget tile(
+      Track track, {
+      required bool active,
+      VoidCallback? onTap,
+      Widget? trailing,
+    }) {
+      final duration = track.duration;
+      return AuraListTile(
+        title: track.title,
+        subtitle: track.artistName ?? AuraStrings.unknownArtist,
+        isActive: active,
+        leading: AuraArtwork(
+          size: AuraSizes.artworkListTile,
+          image: artworkImage(
+            ref,
+            track.artworkUri,
+            alternatives: track.artworkAlternatives,
+          ),
+          placeholderSeed: track.title,
+        ),
+        trailing:
+            trailing ??
+            (duration == null
+                ? null
+                : Text(formatDuration(duration), style: text.numeric)),
+        onPressed: onTap,
+      );
+    }
+
+    Future<void> clearUpcoming() async {
+      // From the end, so the indexes still to remove do not shift.
+      for (var i = snapshot.queue.length - 1; i > currentIndex; i--) {
+        await controller!.removeFromQueue(i);
+      }
+    }
+
+    return [
+      if (current != null) ...[
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: AuraSpacing.xxl,
+              bottom: AuraSpacing.sm,
+            ),
+            child: AuraSectionHeader(title: AuraStrings.nowPlaying),
+          ),
+        ),
+        // The current track on its own highlighted card.
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AuraSpacing.sm),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.surfaceElevated,
+                borderRadius: BorderRadius.circular(AuraRadii.lg),
+                border: Border.all(
+                  color: colors.accent.withValues(alpha: 0.35),
+                ),
+              ),
+              child: tile(
+                current,
+                active: true,
+                trailing: _PlayingIndicator(playing: snapshot.playWhenReady),
+              ),
+            ),
+          ),
+        ),
+      ],
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: AuraSpacing.xl),
+          child: upcoming.isEmpty || controller == null
+              ? const AuraSectionHeader(title: AuraStrings.upNext)
+              : AuraSectionHeader(
+                  title: AuraStrings.upNext,
+                  actionLabel: AuraStrings.clear,
+                  onAction: () => unawaited(clearUpcoming()),
+                ),
+        ),
+      ),
+      if (upcoming.isEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AuraSpacing.screenHorizontal,
+              vertical: AuraSpacing.md,
+            ),
+            child: Text(AuraStrings.queueEnd, style: text.subhead),
+          ),
+        )
+      else if (controller == null)
+        SliverList.builder(
+          itemCount: upcoming.length,
+          itemBuilder: (context, i) => tile(upcoming[i], active: false),
+        )
+      else
+        _UpcomingList(
+          upcoming: upcoming,
+          firstIndex: currentIndex + 1,
+          controller: controller,
+          tile: tile,
+        ),
+    ];
+  }
+
+  List<Widget> _recentSlivers() {
+    final recent = ref.watch(recentlyPlayedProvider);
+    final value = recent.value;
+    if (value == null) {
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: AuraSpacing.lg),
+            child: recent.error == null
+                ? const LoadingRow()
+                : InlineErrorText(error: recent.error!),
+          ),
+        ),
+      ];
+    }
+    if (value.tracks.isEmpty) {
+      return const [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: AuraSpacing.xxl),
+            child: AuraEmptyState(
+              icon: historyIcon,
+              title: AuraStrings.historyEmptyTitle,
+              message: AuraStrings.historyEmptyMessage,
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      const SliverToBoxAdapter(child: SizedBox(height: AuraSpacing.md)),
+      MixedTrackListSliver(tracks: value.tracks),
+      SliverToBoxAdapter(
+        child: ResolvedListFooter(
+          resolved: value,
+          onRetry: () => ref.invalidate(recentlyPlayedProvider),
+        ),
+      ),
+    ];
+  }
+}
+
+/// Moving bars while the current track plays, still bars while paused.
+/// Driven by the playback position, so only this widget rebuilds.
+class _PlayingIndicator extends ConsumerWidget {
+  const _PlayingIndicator({required this.playing});
+
+  final bool playing;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final position = ref.watch(playbackPositionProvider).value ?? Duration.zero;
+    return Padding(
+      padding: const EdgeInsets.only(right: AuraSpacing.xs),
+      child: AuraEqualizer(active: playing, phase: position),
     );
   }
 }

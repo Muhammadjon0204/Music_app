@@ -83,7 +83,11 @@ void main() {
     expect(find.byType(NowPlayingScreen), findsOneWidget);
     await expectGuidelines(tester);
 
-    await tester.tap(find.text(AuraStrings.queue));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is AuraIconButton && w.semanticLabel == AuraStrings.queue,
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(QueueScreen), findsOneWidget);
     await expectGuidelines(tester);

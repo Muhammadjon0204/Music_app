@@ -5,7 +5,13 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 16 — Design system and themes.** Four color themes the
+> Status: **Phase 17 — Player.** Now Playing takes its colors from the
+> real cover (kept readable over any cover in every theme), the cover eases
+> back while paused and a swipe on it changes the track; "Далее" shows what
+> plays next. The queue has "Текущая" and "Недавние" tabs, a highlighted
+> current track with an equalizer, and "Очистить". Playback controls give
+> haptic feedback.
+> **Phase 16 — Design system and themes.** Four color themes the
 > user picks in Settings (Neon from the design reference, plus Midnight,
 > Rose — a light theme — and Forest from the chosen palettes), saved across
 > launches and checked for WCAG AA contrast. Home opens with a "Хиты недели"

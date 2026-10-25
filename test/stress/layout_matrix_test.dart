@@ -124,7 +124,9 @@ void main() {
         await tester.tap(artwork);
         await tester.pumpAndSettle();
         expect(find.byType(NowPlayingScreen), findsOneWidget);
-        final queueButton = find.text(AuraStrings.queue);
+        final queueButton = find.byWidgetPredicate(
+          (w) => w is AuraIconButton && w.semanticLabel == AuraStrings.queue,
+        );
         await tester.scrollUntilVisible(
           queueButton,
           200,

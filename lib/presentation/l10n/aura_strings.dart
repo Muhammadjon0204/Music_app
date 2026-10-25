@@ -204,6 +204,9 @@ abstract final class AuraStrings {
   static const queue = 'Очередь';
   static const nowPlaying = 'Сейчас играет';
   static const upNext = 'Далее';
+  static const queueCurrent = 'Текущая';
+  static const queueRecent = 'Недавние';
+  static String upNextTrack(String title) => 'Далее: $title. Открыть очередь';
   static const removeFromQueue = 'Убрать из очереди';
   static const reorderInQueue = 'Перетащите, чтобы изменить порядок';
   static const moveUp = 'Переместить выше';

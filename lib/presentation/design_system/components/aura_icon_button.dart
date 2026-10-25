@@ -14,6 +14,7 @@ class AuraIconButton extends StatelessWidget {
     this.color,
     this.iconSize = AuraSizes.iconLg,
     this.toggled,
+    this.haptic = false,
   }) : diameter = null,
        backgroundColor = null;
 
@@ -28,6 +29,7 @@ class AuraIconButton extends StatelessWidget {
     this.backgroundColor,
     this.iconSize = AuraSizes.iconLg,
     this.toggled,
+    this.haptic = false,
   });
 
   final IconData icon;
@@ -40,6 +42,9 @@ class AuraIconButton extends StatelessWidget {
   /// For on/off actions such as "favorite". Pair it with a different icon
   /// for each state so the state is not conveyed by color alone.
   final bool? toggled;
+
+  /// Light haptic on tap, for playback actions.
+  final bool haptic;
 
   /// Set only by [AuraIconButton.filled].
   final double? diameter;
@@ -73,6 +78,7 @@ class AuraIconButton extends StatelessWidget {
       onPressed: onPressed,
       semanticLabel: semanticLabel,
       toggled: toggled,
+      haptic: haptic,
       feedback: diameter != null
           ? AuraPressFeedback.scale
           : AuraPressFeedback.opacity,

@@ -310,6 +310,111 @@ void main() {
     await player.dispose();
   });
 
+  testWidgets('"Далее" names the next track and opens the queue', (
+    tester,
+  ) async {
+    final player = await pumpWithPlayer(tester);
+    await loadHits(tester, player);
+    await openNowPlaying(tester);
+
+    final pill = find.bySemanticsLabel(AuraStrings.upNextTrack(hits[1].title));
+    expect(pill, findsOneWidget);
+    await tester.tap(pill);
+    await tester.pump();
+    await tester.pump(sheetTime);
+    expect(find.byType(QueueScreen), findsOneWidget);
+    await player.dispose();
+  });
+
+  testWidgets('a swipe on the cover changes the track', (tester) async {
+    final player = await pumpWithPlayer(tester);
+    await loadHits(tester, player);
+    await openNowPlaying(tester);
+    final cover = inNowPlaying(find.byType(AuraArtwork));
+
+    await tester.fling(cover, const Offset(-200, 0), 1000);
+    await tester.pump();
+    expect(player.snapshot.currentTrack, hits[1]);
+    // Let the cover cross-fade finish, so only one cover is left.
+    await tester.pump(sheetTime);
+
+    await tester.fling(cover, const Offset(200, 0), 1000);
+    await tester.pump();
+    expect(player.snapshot.currentTrack, hits[0]);
+    await tester.pump(sheetTime);
+
+    // A slow drag: a short one springs back, a long one changes the track.
+    final width = tester.getSize(cover).width;
+    await tester.timedDrag(
+      cover,
+      Offset(-width * 0.1, 0),
+      const Duration(seconds: 1),
+    );
+    await tester.pump(sheetTime);
+    expect(player.snapshot.currentTrack, hits[0]);
+    await tester.timedDrag(
+      cover,
+      Offset(-width * 0.6, 0),
+      const Duration(seconds: 2),
+    );
+    await tester.pump();
+    expect(player.snapshot.currentTrack, hits[1]);
+    await tester.pump(sheetTime);
+    await player.dispose();
+  });
+
+  testWidgets('the cover eases back while paused', (tester) async {
+    final player = await pumpWithPlayer(tester);
+    await loadHits(tester, player);
+    await openNowPlaying(tester);
+    double scale() => tester
+        .widget<AnimatedScale>(
+          find.ancestor(
+            of: inNowPlaying(find.byType(AuraArtwork)),
+            matching: find.byType(AnimatedScale),
+          ),
+        )
+        .scale;
+
+    expect(scale(), lessThan(1));
+    await player.play();
+    await tester.pump();
+    expect(scale(), 1);
+    await player.pause();
+    await tester.pump(sheetTime);
+    await player.dispose();
+  });
+
+  testWidgets('queue: clear what is left; recent plays on their own tab', (
+    tester,
+  ) async {
+    final player = await pumpWithPlayer(tester);
+    await loadHits(tester, player);
+    await openNowPlaying(tester);
+    await tester.tap(iconButton(AuraStrings.queue));
+    await tester.pump();
+    await tester.pump(sheetTime);
+
+    expect(find.byType(AuraEqualizer), findsOneWidget);
+    await tester.tap(find.text(AuraStrings.clear));
+    await tester.pump();
+    await tester.pump();
+    expect(player.snapshot.queue, [hits[0]]);
+    expect(find.text(AuraStrings.queueEnd), findsOneWidget);
+
+    await tester.tap(find.text(AuraStrings.queueRecent));
+    await tester.pump();
+    await tester.pump(sheetTime);
+    expect(find.text(AuraStrings.historyEmptyTitle), findsOneWidget);
+    expect(find.text(AuraStrings.nowPlaying), findsNothing);
+
+    await tester.tap(find.text(AuraStrings.queueCurrent));
+    await tester.pump();
+    await tester.pump(sheetTime);
+    expect(find.text(AuraStrings.nowPlaying), findsOneWidget);
+    await player.dispose();
+  });
+
   testWidgets('queue lists now playing and up next; a tap jumps', (
     tester,
   ) async {
@@ -317,7 +422,7 @@ void main() {
     await loadHits(tester, player);
     await openNowPlaying(tester);
 
-    await tester.tap(find.text(AuraStrings.queue));
+    await tester.tap(iconButton(AuraStrings.queue));
     await tester.pump();
     await tester.pump(sheetTime);
     expect(find.byType(QueueScreen), findsOneWidget);

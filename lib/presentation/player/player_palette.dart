@@ -1,12 +1,27 @@
 import 'package:flutter/painting.dart';
 import 'package:music_app/presentation/design_system/tokens/aura_colors.dart';
+import 'package:music_app/presentation/player/artwork_colors.dart';
 
 /// Now Playing background derived from the artwork colors: tinted at the
-/// top, fading into the app background. Text sits below the middle stop,
-/// which is dark enough for it (checked in contrast tests).
+/// top, fading into the app background. Any cover works, including real
+/// ones: each stop is covered by the background just enough that the text
+/// on it stays readable (the close button on the top, title and times from
+/// the middle stop down).
 List<Color> nowPlayingBackground(List<Color> artwork, AuraColors colors) => [
-  Color.alphaBlend(colors.background.withValues(alpha: 0.45), artwork.first),
-  Color.alphaBlend(colors.background.withValues(alpha: 0.7), artwork.last),
+  readableTint(
+    artwork.first,
+    colors,
+    minAlpha: 0.45,
+    texts: [colors.textPrimary],
+    minContrast: 3,
+  ),
+  readableTint(
+    artwork.last,
+    colors,
+    minAlpha: 0.7,
+    texts: [colors.textPrimary, colors.textSecondary, colors.textTertiary],
+    minContrast: 4.5,
+  ),
   colors.background,
 ];
 

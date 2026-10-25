@@ -5,7 +5,8 @@ import 'package:music_app/presentation/design_system/tokens/aura_dimensions.dart
 import 'package:music_app/presentation/design_system/tokens/aura_motion.dart';
 
 /// Icon toggle such as shuffle or repeat. "On" is shown by a highlight
-/// shape as well as color, and announced by VoiceOver.
+/// shape as well as color, and announced by VoiceOver. Taps give a light
+/// haptic, like other playback controls.
 class AuraToggleButton extends StatelessWidget {
   const AuraToggleButton({
     super.key,
@@ -29,6 +30,7 @@ class AuraToggleButton extends StatelessWidget {
       onPressed: onPressed,
       semanticLabel: semanticLabel,
       toggled: isOn,
+      haptic: true,
       feedback: AuraPressFeedback.opacity,
       child: SizedBox.square(
         dimension: AuraSizes.minTouchTarget,
