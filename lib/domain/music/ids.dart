@@ -14,3 +14,7 @@ extension type const ProviderId(String value) {}
 /// A track's ID inside one provider's catalog. Meaningful only together with
 /// its [ProviderId].
 extension type const ExternalTrackId(String value) {}
+
+/// An artist's ID inside one provider's catalog. Meaningful only together
+/// with its [ProviderId].
+extension type const ExternalArtistId(String value) {}

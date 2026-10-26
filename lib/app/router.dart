@@ -10,6 +10,7 @@ import 'package:music_app/presentation/library/history_screen.dart';
 import 'package:music_app/presentation/library/library_list_screens.dart';
 import 'package:music_app/presentation/library/library_screen.dart';
 import 'package:music_app/presentation/library/track_collection_screens.dart';
+import 'package:music_app/presentation/online/online_artist_screen.dart';
 import 'package:music_app/presentation/navigation/app_routes.dart';
 import 'package:music_app/presentation/player/now_playing_screen.dart';
 import 'package:music_app/presentation/player/queue_screen.dart';
@@ -61,6 +62,16 @@ List<RouteBase> _detailRoutes() {
       path: '${DetailKind.playlist.name}/:id',
       pageBuilder: (_, state) =>
           _page(state, PlaylistScreen(playlistId: PlaylistId(id(state)))),
+    ),
+    GoRoute(
+      path: 'online-artist/:provider/:id',
+      pageBuilder: (_, state) => _page(
+        state,
+        OnlineArtistScreen(
+          providerId: ProviderId(state.pathParameters['provider']!),
+          artistId: ExternalArtistId(id(state)),
+        ),
+      ),
     ),
   ];
 }

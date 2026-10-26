@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app/application/online/online_artist_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
+import 'package:music_app/presentation/navigation/detail_navigation.dart';
 import 'package:music_app/presentation/online/online_tracks.dart';
 import 'package:music_app/presentation/online/popular_tracks_section.dart';
 import 'package:music_app/presentation/search/genres.dart';
@@ -103,7 +105,18 @@ class CatalogHome extends ConsumerWidget {
                   _ArtistBubble(
                     name: name,
                     track: track,
-                    onPressed: () => openSearchFor(context, ref, name),
+                    // The artist's page when the catalog has one.
+                    onPressed: () => switch (onlineArtistOf(
+                      ref.read(providerRegistryProvider),
+                      track,
+                    )) {
+                      final artist? => openOnlineArtist(
+                        context,
+                        artist.$1.value,
+                        artist.$2.value,
+                      ),
+                      null => openSearchFor(context, ref, name),
+                    },
                   ),
               ],
             ),
@@ -564,7 +577,7 @@ class _ArtistBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AuraPressable(
       onPressed: onPressed,
-      semanticLabel: AuraStrings.findArtist(name),
+      semanticLabel: AuraStrings.openArtist(name),
       child: SizedBox(
         width: _size,
         child: Column(

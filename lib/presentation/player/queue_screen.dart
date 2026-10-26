@@ -14,6 +14,9 @@ import 'package:music_app/presentation/common/artwork_image.dart';
 import 'package:music_app/presentation/common/content_width.dart';
 import 'package:music_app/presentation/common/duration_format.dart';
 import 'package:music_app/presentation/library/history_screen.dart';
+import 'package:music_app/presentation/library/track_menu.dart';
+import 'package:music_app/presentation/common/dialogs.dart';
+import 'package:music_app/core/error/result.dart';
 import 'package:music_app/presentation/design_system/design_system.dart';
 import 'package:music_app/presentation/l10n/aura_strings.dart';
 import 'package:music_app/presentation/library/mixed_track_list.dart';
@@ -33,9 +36,35 @@ class QueueScreen extends ConsumerStatefulWidget {
 class _QueueScreenState extends ConsumerState<QueueScreen> {
   var _tab = _QueueTab.current;
 
+  /// The whole queue into a playlist (new or existing), online tracks
+  /// included.
+  Future<void> _saveQueue(List<Track> queue) async {
+    final result = await addTracksToPlaylist(
+      context,
+      ref,
+      queue,
+      title: AuraStrings.saveQueueAsPlaylist,
+    );
+    if (!mounted) return;
+    switch (result) {
+      case Ok():
+        await showMessage(
+          context,
+          title: AuraStrings.savedToPlaylist(queue.length),
+          message: AuraStrings.savedToPlaylistHint,
+        );
+      case Err(:final failure):
+        await showFailure(context, failure);
+      case null:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = context.auraText;
+    final queue =
+        ref.watch(playbackSnapshotProvider).value?.queue ?? const <Track>[];
 
     return Scaffold(
       body: SafeArea(
@@ -44,15 +73,24 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
           child: Column(
             children: [
               // Pinned like an iOS navigation bar: never scrolls away.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: AuraSpacing.sm),
-                  child: AuraIconButton(
-                    icon: CupertinoIcons.chevron_left,
-                    semanticLabel: AuraStrings.back,
-                    onPressed: () => context.pop(),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AuraSpacing.sm),
+                child: Row(
+                  children: [
+                    AuraIconButton(
+                      icon: CupertinoIcons.chevron_left,
+                      semanticLabel: AuraStrings.back,
+                      onPressed: () => context.pop(),
+                    ),
+                    const Spacer(),
+                    if (queue.isNotEmpty)
+                      AuraIconButton(
+                        icon: CupertinoIcons.text_badge_plus,
+                        semanticLabel: AuraStrings.saveQueueAsPlaylist,
+                        color: context.auraColors.textSecondary,
+                        onPressed: () => unawaited(_saveQueue(queue)),
+                      ),
+                  ],
                 ),
               ),
               Expanded(

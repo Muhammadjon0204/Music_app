@@ -1,6 +1,7 @@
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/music/track_source.dart';
+import 'package:music_app/domain/providers/music_provider.dart';
 
 /// Converts Jamendo API v3 track JSON into the app's [Track].
 ///
@@ -25,6 +26,11 @@ abstract final class JamendoTrackMapper {
           : StreamAvailability.unavailable,
       originalUrl: _pageUrl(json['shareurl']),
       license: _text(json['license_ccurl']),
+      artistExternalId: switch (_text(json['artist_id'])) {
+        final id? when isValidId(id) => ExternalArtistId(id),
+        _ => null,
+      },
+      genres: genresOf(json),
     );
     final duration = _seconds(json['duration']);
     return Track(
@@ -57,6 +63,33 @@ abstract final class JamendoTrackMapper {
 
   /// The track's stream (`audio`), HTTPS only.
   static Uri? streamUriOf(Map<String, Object?> json) => _https(json['audio']);
+
+  /// A Jamendo artist (`/artists/`); null without an ID and a name.
+  static OnlineArtist? artistFromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    final id = _text(json['id']);
+    final name = _text(json['name']);
+    if (id == null || !isValidId(id) || name == null) return null;
+    return OnlineArtist(
+      providerId: providerId,
+      id: ExternalArtistId(id),
+      name: name,
+      imageUri: _https(json['image']),
+      pageUrl: _pageUrl(json['shareurl']),
+    );
+  }
+
+  /// `musicinfo.tags.genres` (present with `include=musicinfo`).
+  static List<String> genresOf(Map<String, Object?> json) {
+    final info = json['musicinfo'];
+    final tags = info is Map<String, Object?> ? info['tags'] : null;
+    final genres = tags is Map<String, Object?> ? tags['genres'] : null;
+    return [
+      if (genres is List<Object?>)
+        for (final g in genres)
+          if (g is String && g.trim().isNotEmpty) g.trim(),
+    ];
+  }
 
   static String? _text(Object? value) => switch (value) {
     final String s when s.trim().isNotEmpty => s.trim(),

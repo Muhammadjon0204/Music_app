@@ -172,9 +172,8 @@ class PlaylistsScreen extends ConsumerWidget {
                   final playlist = playlists[index];
                   return AuraListTile(
                     title: playlist.name,
-                    subtitle: AuraStrings.trackCount(
-                      library.tracksOf(playlist).length,
-                    ),
+                    // Library and online tracks alike.
+                    subtitle: AuraStrings.trackCount(playlist.trackIds.length),
                     leading: AuraArtwork(
                       size: AuraSizes.artworkListTile,
                       placeholderSeed: playlist.name,

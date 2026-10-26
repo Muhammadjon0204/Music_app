@@ -92,6 +92,63 @@ abstract interface class StreamingProvider implements MusicProvider {
 /// next to each of their tracks, with a link to the track's page.
 abstract interface class AttributionRequiredProvider implements MusicProvider {}
 
+/// An artist as a catalog describes them. Only what the provider says;
+/// missing fields stay null.
+final class OnlineArtist {
+  const OnlineArtist({
+    required this.providerId,
+    required this.id,
+    required this.name,
+    this.imageUri,
+    this.coverUri,
+    this.followerCount,
+    this.trackCount,
+    this.bio,
+    this.pageUrl,
+  });
+
+  final ProviderId providerId;
+  final ExternalArtistId id;
+  final String name;
+
+  /// Portrait (square).
+  final Uri? imageUri;
+
+  /// Wide banner, when the catalog has one.
+  final Uri? coverUri;
+  final int? followerCount;
+  final int? trackCount;
+  final String? bio;
+
+  /// The artist's public page at the provider.
+  final Uri? pageUrl;
+}
+
+/// A catalog with artist pages: who the artist is and their tracks, most
+/// popular first.
+abstract interface class ArtistProvider implements MusicProvider {
+  Future<Result<OnlineArtist>> artist(
+    ExternalArtistId id, {
+    Cancellation? cancellation,
+  });
+
+  Future<Result<ProviderPage<Track>>> artistTracks(
+    ExternalArtistId id, {
+    PageRequest page = const PageRequest(),
+    Cancellation? cancellation,
+  });
+}
+
+/// A catalog that can suggest tracks like a given one (same genre, same
+/// artist), for an endless "radio". [seed] itself is never in the result.
+abstract interface class RadioProvider implements MusicProvider {
+  Future<Result<List<Track>>> radioFor(
+    Track seed, {
+    int limit = 30,
+    Cancellation? cancellation,
+  });
+}
+
 /// The providers this build knows about. Local music needs none.
 final class ProviderRegistry {
   ProviderRegistry([Iterable<MusicProvider> providers = const []])

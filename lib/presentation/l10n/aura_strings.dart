@@ -318,6 +318,20 @@ abstract final class AuraStrings {
   static const topOfWeek = 'Топ-10 недели';
   static const artistsOfWeek = 'Артисты недели';
   static String findArtist(String name) => 'Найти: $name';
+  static String openArtist(String name) => 'Артист: $name';
+  static const goToArtist = 'Перейти к артисту';
+  static const startRadio = 'Радио по треку';
+  static const radio = 'Радио';
+  static const share = 'Поделиться';
+  static const shareFailed = 'Не удалось поделиться';
+  static const saveQueue = 'Сохранить';
+  static const saveQueueAsPlaylist = 'Сохранить очередь в плейлист';
+  static String savedToPlaylist(int count) => 'Сохранено: ${trackCount(count)}';
+  static const savedToPlaylistHint = 'Плейлист — в разделе «Библиотека».';
+  static const artistPopularTracks = 'Популярные треки';
+  static String followers(int count) =>
+      '$count ${pluralRu(count, 'подписчик', 'подписчика', 'подписчиков')}';
+  static String openAt(String provider) => 'Открыть на $provider';
   static String weeklyHitsSubtitle(int count) =>
       'Самое популярное · ${trackCount(count)}';
 

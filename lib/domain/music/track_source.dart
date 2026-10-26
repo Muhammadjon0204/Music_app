@@ -1,3 +1,4 @@
+import 'package:music_app/core/utils/list_equality.dart';
 import 'package:music_app/domain/music/ids.dart';
 
 /// Where a track can be played from. One recording may have several sources.
@@ -72,6 +73,8 @@ final class ProviderTrackSource extends TrackSource {
     this.availability = StreamAvailability.unknown,
     this.originalUrl,
     this.license,
+    this.artistExternalId,
+    this.genres = const [],
   });
 
   final ProviderId providerId;
@@ -84,6 +87,13 @@ final class ProviderTrackSource extends TrackSource {
   /// License as stated by the provider, e.g. "All rights reserved" or a
   /// Creative Commons name. Null when unknown.
   final String? license;
+
+  /// The artist's ID at the same provider, for the artist's page and radio.
+  final ExternalArtistId? artistExternalId;
+
+  /// Genres as the provider names them (e.g. "Dubstep"), lower priority
+  /// first is not implied; empty when unknown.
+  final List<String> genres;
 
   bool get canOpenExternally => originalUrl != null;
 
@@ -99,7 +109,9 @@ final class ProviderTrackSource extends TrackSource {
       other.externalId == externalId &&
       other.availability == availability &&
       other.originalUrl == originalUrl &&
-      other.license == license;
+      other.license == license &&
+      other.artistExternalId == artistExternalId &&
+      elementsEqual(other.genres, genres);
 
   @override
   int get hashCode => Object.hash(
@@ -109,6 +121,8 @@ final class ProviderTrackSource extends TrackSource {
     availability,
     originalUrl,
     license,
+    artistExternalId,
+    Object.hashAll(genres),
   );
 }
 

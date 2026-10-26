@@ -5,7 +5,9 @@ import 'package:music_app/data/network/json_http_client.dart';
 import 'package:music_app/data/providers/audius/audius_track_mapper.dart';
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track.dart';
+import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
+import 'package:music_app/domain/providers/radio_mix.dart';
 
 /// Audius through its official public REST API (https://docs.audius.co/api).
 ///
@@ -22,7 +24,9 @@ final class AudiusProvider
         PopularTracksProvider,
         TrackDetailsProvider,
         BatchTrackDetailsProvider,
-        StreamingProvider {
+        StreamingProvider,
+        ArtistProvider,
+        RadioProvider {
   AudiusProvider({required this._http, this.appName = 'MusicLab', Uri? apiBase})
     : _apiBase = apiBase ?? Uri.parse('https://api.audius.co/v1');
 
@@ -138,6 +142,96 @@ final class AudiusProvider
       return const Err(NotFoundFailure(debugMessage: 'Invalid Audius ID'));
     }
     return Ok(_uri(['tracks', id.value, 'stream']));
+  }
+
+  @override
+  Future<Result<OnlineArtist>> artist(
+    ExternalArtistId id, {
+    Cancellation? cancellation,
+  }) async {
+    if (!AudiusTrackMapper.isValidId(id.value)) {
+      return const Err(NotFoundFailure(debugMessage: 'Invalid Audius user'));
+    }
+    final response = await _http.getJson(
+      _uri(['users', id.value]),
+      cancellation: cancellation,
+    );
+    return switch (response) {
+      Err(:final failure) => Err(failure),
+      Ok(:final value) => switch (AudiusTrackMapper.artistFromJson(
+        _data(value),
+      )) {
+        final artist? => Ok(artist),
+        null => const Err(
+          InvalidResponseFailure(debugMessage: 'Audius user without data'),
+        ),
+      },
+    };
+  }
+
+  /// The artist's tracks, most played first.
+  @override
+  Future<Result<ProviderPage<Track>>> artistTracks(
+    ExternalArtistId id, {
+    PageRequest page = const PageRequest(),
+    Cancellation? cancellation,
+  }) async {
+    if (!AudiusTrackMapper.isValidId(id.value)) {
+      return const Err(NotFoundFailure(debugMessage: 'Invalid Audius user'));
+    }
+    return _page(
+      ['users', id.value, 'tracks'],
+      const {'sort': 'plays'},
+      page,
+      cancellation,
+    );
+  }
+
+  /// Trending tracks of the seed's genre, mixed with a few more by the same
+  /// artist. Audius has no "similar tracks" endpoint.
+  @override
+  Future<Result<List<Track>>> radioFor(
+    Track seed, {
+    int limit = 30,
+    Cancellation? cancellation,
+  }) async {
+    final source = seed.sources
+        .whereType<ProviderTrackSource>()
+        .where((s) => s.providerId == id)
+        .firstOrNull;
+    final genre = source?.genres.firstOrNull;
+    final artistId = source?.artistExternalId;
+    final results = await Future.wait([
+      genre == null
+          ? popularTracks(
+              page: PageRequest(limit: limit),
+              cancellation: cancellation,
+            )
+          : _page(
+              ['tracks', 'trending'],
+              {'genre': genre},
+              PageRequest(limit: limit),
+              cancellation,
+            ),
+      if (artistId != null)
+        artistTracks(
+          artistId,
+          page: const PageRequest(limit: 6),
+          cancellation: cancellation,
+        ),
+    ]);
+    final failure = results
+        .map((r) => r is Err<ProviderPage<Track>> ? r.failure : null)
+        .nonNulls
+        .firstOrNull;
+    final lists = [
+      for (final result in results)
+        if (result case Ok(:final value)) value.items,
+    ];
+    if (lists.isEmpty) {
+      return Err(failure ?? const UnexpectedFailure(debugMessage: 'No radio'));
+    }
+    return Ok(mixForRadio(lists, seed: seed, limit: limit));
   }
 
   Future<Result<ProviderPage<Track>>> _page(

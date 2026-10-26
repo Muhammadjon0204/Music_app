@@ -18,6 +18,11 @@ import 'package:music_app/presentation/library/library_page.dart';
 import 'package:music_app/presentation/library/mixed_track_list.dart';
 import 'package:music_app/presentation/library/track_list_sliver.dart';
 import 'package:music_app/presentation/navigation/detail_navigation.dart';
+import 'package:music_app/presentation/library/history_screen.dart';
+import 'package:music_app/presentation/library/library_track_tile.dart';
+import 'package:music_app/presentation/library/track_menu.dart';
+import 'package:music_app/presentation/online/online_tracks.dart';
+import 'package:music_app/application/playback/playback_providers.dart';
 
 /// Builds a page from the current library, with a loading page until the
 /// library has been read.
@@ -50,7 +55,11 @@ class PlayShuffleBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasPlayable = playableTracks(ref, tracks).isNotEmpty;
+    List<Track> playable() => [
+      for (final t in playableTracks(ref, tracks))
+        if (canPlayInApp(t)) t,
+    ];
+    final hasPlayable = playable().isNotEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AuraSpacing.screenHorizontal,
@@ -66,8 +75,7 @@ class PlayShuffleBar extends ConsumerWidget {
               icon: CupertinoIcons.play_fill,
               expand: true,
               onPressed: hasPlayable
-                  ? () =>
-                        unawaited(playTracks(ref, playableTracks(ref, tracks)))
+                  ? () => unawaited(playTracks(ref, playable()))
                   : null,
             ),
           ),
@@ -79,9 +87,7 @@ class PlayShuffleBar extends ConsumerWidget {
               variant: AuraButtonVariant.secondary,
               expand: true,
               onPressed: hasPlayable
-                  ? () => unawaited(
-                      shuffleTracks(ref, playableTracks(ref, tracks)),
-                    )
+                  ? () => unawaited(shuffleTracks(ref, playable()))
                   : null,
             ),
           ),
@@ -327,21 +333,33 @@ class PlaylistScreen extends ConsumerWidget {
             slivers: _notFound,
           );
         }
-        final tracks = library.tracksOf(playlist);
+        // Library and online tracks alike, in playlist order.
+        final resolved = ref.watch(playlistTracksProvider(playlist.id));
+        final value = resolved.value;
+        final cover = value?.tracks.firstOrNull;
+        final coverImage = cover == null
+            ? null
+            : artworkImage(
+                ref,
+                cover.artworkUri,
+                alternatives: cover.artworkAlternatives,
+              );
         return LibraryPage(
           title: playlist.name,
           trailing: _PlaylistMenuButton(playlist: playlist),
           header: _CollectionHeader(
             title: playlist.name,
-            subtitle: AuraStrings.trackCount(tracks.length),
+            subtitle: AuraStrings.trackCount(playlist.trackIds.length),
             artwork: AuraArtwork(
               size: 200,
+              image: coverImage,
               borderRadius: AuraRadii.lg,
               placeholderSeed: playlist.name,
             ),
+            glow: coverImage,
             seed: playlist.name,
           ),
-          slivers: tracks.isEmpty
+          slivers: playlist.trackIds.isEmpty
               ? const [
                   LibraryEmptySliver(
                     icon: CupertinoIcons.music_note_list,
@@ -349,7 +367,93 @@ class PlaylistScreen extends ConsumerWidget {
                     message: AuraStrings.playlistEmptyMessage,
                   ),
                 ]
-              : _trackSlivers(tracks, playlistId: playlist.id),
+              : value == null
+              ? [
+                  if (resolved.error case final error?)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(
+                          AuraSpacing.screenHorizontal,
+                        ),
+                        child: InlineErrorText(error: error),
+                      ),
+                    )
+                  else
+                    const SliverToBoxAdapter(child: LoadingRow()),
+                ]
+              : [
+                  SliverToBoxAdapter(
+                    child: PlayShuffleBar(tracks: value.tracks),
+                  ),
+                  _PlaylistEntriesSliver(
+                    playlistId: playlist.id,
+                    entries: value.entries,
+                  ),
+                  SliverToBoxAdapter(
+                    child: ResolvedListFooter(
+                      resolved: value.asResolved,
+                      onRetry: () =>
+                          ref.invalidate(playlistTracksProvider(playlist.id)),
+                    ),
+                  ),
+                ],
+        );
+      },
+    );
+  }
+}
+
+/// A playlist's rows: library tracks with the library menu, online ones
+/// with theirs; both can be removed from the playlist at their position.
+class _PlaylistEntriesSliver extends ConsumerWidget {
+  const _PlaylistEntriesSliver({
+    required this.playlistId,
+    required this.entries,
+  });
+
+  final PlaylistId playlistId;
+  final List<(int, Track)> entries;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final missing = ref.watch(missingTracksProvider).value ?? const {};
+    final currentId = ref.watch(
+      playbackSnapshotProvider.select((s) => s.value?.currentTrack?.id),
+    );
+    final tracks = [for (final (_, t) in entries) t];
+    return SliverList.builder(
+      itemCount: entries.length,
+      itemBuilder: (context, i) {
+        final (position, track) = entries[i];
+        if (onlineSourceOf(track) != null) {
+          return OnlineTrackTile(
+            track: track,
+            list: tracks,
+            playlistEntry: (playlistId, position),
+          );
+        }
+        final isMissing = missing.contains(track.id);
+        return LibraryTrackTile(
+          track: track,
+          missing: isMissing,
+          isCurrent: track.id == currentId,
+          onPressed: () {
+            if (isMissing) {
+              unawaited(showMissingTrack(context, ref, track));
+              return;
+            }
+            unawaited(
+              playOnline(context, ref, playableTracks(ref, tracks), track),
+            );
+          },
+          onMore: () => unawaited(
+            showTrackMenu(
+              context,
+              ref,
+              track,
+              playlistEntry: (playlistId, position),
+            ),
+          ),
         );
       },
     );

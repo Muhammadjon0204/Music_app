@@ -135,3 +135,95 @@ class FakeLinkOpener implements ExternalLinkOpener {
     return succeed;
   }
 }
+
+/// A catalog with artist pages and radio, both scripted by the test.
+class FakeArtistCatalog extends FakeCatalogProvider
+    implements ArtistProvider, RadioProvider {
+  FakeArtistCatalog({super.search, super.popular});
+
+  /// What [artist] answers; a name and 1200 followers by default.
+  Future<Result<OnlineArtist>> Function(ExternalArtistId id) artistAnswer =
+      (id) async => Ok(
+        OnlineArtist(
+          providerId: const ProviderId('catalog'),
+          id: id,
+          name: 'Artist ${id.value}',
+          followerCount: 1200,
+          bio: 'Био артиста',
+          pageUrl: Uri.parse('https://catalog.test/artist/${id.value}'),
+        ),
+      );
+
+  /// What [artistTracks] answers.
+  Future<Result<ProviderPage<Track>>> Function(ExternalArtistId id)
+  tracksAnswer = (id) async => Ok(
+    ProviderPage(
+      items: [
+        artistTrack('${id.value}-1', artist: id.value),
+        artistTrack('${id.value}-2', artist: id.value),
+      ],
+    ),
+  );
+
+  /// What [radioFor] answers, given the seed.
+  Future<Result<List<Track>>> Function(Track seed) radioAnswer = (seed) async =>
+      Ok([for (var i = 0; i < 5; i++) onlineTrack('r$i-${seed.id.value}')]);
+
+  final radioSeeds = <Track>[];
+
+  @override
+  Future<Result<OnlineArtist>> artist(
+    ExternalArtistId id, {
+    Cancellation? cancellation,
+  }) => artistAnswer(id);
+
+  @override
+  Future<Result<ProviderPage<Track>>> artistTracks(
+    ExternalArtistId id, {
+    PageRequest page = const PageRequest(),
+    Cancellation? cancellation,
+  }) => tracksAnswer(id);
+
+  @override
+  Future<Result<List<Track>>> radioFor(
+    Track seed, {
+    int limit = 30,
+    Cancellation? cancellation,
+  }) {
+    radioSeeds.add(seed);
+    return radioAnswer(seed);
+  }
+}
+
+/// An online track of the default catalog by artist [artist] (its ID).
+Track artistTrack(String id, {String artist = 'a1'}) {
+  final source = ProviderTrackSource(
+    providerId: const ProviderId('catalog'),
+    externalId: ExternalTrackId(id),
+    availability: StreamAvailability.full,
+    originalUrl: Uri.parse('https://catalog.test/track/$id'),
+    artistExternalId: ExternalArtistId(artist),
+  );
+  return Track(
+    id: source.trackId,
+    title: 'Track $id',
+    artistName: 'Artist $artist',
+    duration: const Duration(minutes: 3),
+    sources: [source],
+  );
+}
+
+/// Records shares instead of opening the system sheet.
+class FakeLinkSharer implements LinkSharer {
+  final shared = <(String, Uri?)>[];
+
+  @override
+  Future<bool> share({
+    required String text,
+    Uri? uri,
+    ShareOrigin? origin,
+  }) async {
+    shared.add((text, uri));
+    return true;
+  }
+}

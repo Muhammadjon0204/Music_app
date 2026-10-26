@@ -173,3 +173,45 @@ final onlineFavoritesProvider = FutureProvider<ResolvedTracks>((ref) async {
   ref.watch(onlineTrackCacheProvider);
   return resolveTrackIds(ref, library.onlineFavoriteIds, library);
 }, retry: (_, _) => null);
+
+/// A playlist's tracks, library and online alike, in playlist order, each
+/// paired with its position in the playlist (a track can appear twice; an
+/// online track that is gone leaves its position out).
+final playlistTracksProvider = FutureProvider.autoDispose
+    .family<PlaylistTracks, PlaylistId>((ref, id) async {
+      final library = await ref.watch(librarySnapshotProvider.future);
+      ref.watch(onlineTrackCacheProvider);
+      final playlist = library.playlist(id);
+      if (playlist == null) return PlaylistTracks(entries: const []);
+      final resolved = await resolveTrackIds(ref, playlist.trackIds, library);
+      final byId = {for (final t in resolved.tracks) t.id: t};
+      return PlaylistTracks(
+        entries: [
+          for (final (index, trackId) in playlist.trackIds.indexed)
+            if (byId[trackId] case final track?) (index, track),
+        ],
+        unavailable: resolved.unavailable,
+        failure: resolved.failure,
+      );
+    }, retry: (_, _) => null);
+
+final class PlaylistTracks {
+  PlaylistTracks({
+    required List<(int, Track)> entries,
+    this.unavailable = 0,
+    this.failure,
+  }) : entries = List.unmodifiable(entries);
+
+  /// (position in the playlist, track).
+  final List<(int, Track)> entries;
+  final int unavailable;
+  final AppFailure? failure;
+
+  List<Track> get tracks => [for (final (_, t) in entries) t];
+
+  ResolvedTracks get asResolved => ResolvedTracks(
+    tracks: tracks,
+    unavailable: unavailable,
+    failure: failure,
+  );
+}

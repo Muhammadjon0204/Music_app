@@ -27,6 +27,7 @@ import 'package:music_app/core/logging/app_logger.dart';
 import 'package:music_app/data/demo/demo_catalog.dart';
 import 'package:music_app/data/library/file_track_importer.dart';
 import 'package:music_app/data/network/json_http_client.dart';
+import 'package:music_app/data/platform/share_plus_link_sharer.dart';
 import 'package:music_app/data/platform/url_launcher_link_opener.dart';
 import 'package:music_app/data/providers/audius/audius_provider.dart';
 import 'package:music_app/data/providers/jamendo/jamendo_provider.dart';
@@ -130,6 +131,7 @@ Future<void> main() async {
       externalLinkOpenerProvider.overrideWithValue(
         const UrlLauncherLinkOpener(),
       ),
+      linkSharerProvider.overrideWithValue(const SharePlusLinkSharer()),
       if (paths != null) ...[
         audioFilePickerProvider.overrideWithValue(
           const SystemAudioFilePicker(),

@@ -174,7 +174,8 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      final artist = find.bySemanticsLabel(AuraStrings.findArtist('Artist 3'));
+      // The fake catalog has no artist pages: the artist is searched for.
+      final artist = find.bySemanticsLabel(AuraStrings.openArtist('Artist 3'));
       await tester.tap(await scrollTo(tester, artist));
       await tester.pumpAndSettle();
       expect(find.byType(SearchScreen), findsOneWidget);

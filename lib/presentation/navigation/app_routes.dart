@@ -33,6 +33,11 @@ abstract final class AppRoutes {
   /// `/library`), so it opens in that tab's own history.
   static String detail(String tabRoot, DetailKind kind, String id) =>
       '$tabRoot/${kind.name}/${Uri.encodeComponent(id)}';
+
+  /// An online catalog's artist page inside a tab.
+  static String onlineArtist(String tabRoot, String provider, String id) =>
+      '$tabRoot/online-artist/${Uri.encodeComponent(provider)}/'
+      '${Uri.encodeComponent(id)}';
 }
 
 enum DetailKind { album, artist, playlist }

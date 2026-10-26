@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app/application/library/library_providers.dart';
+import 'package:music_app/application/online/online_track_lookup.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/library/library_repository.dart';
@@ -69,7 +70,7 @@ Future<void> showTrackMenu(
     _TrackAction.playLast => _queue(() => player!.addToQueue([track])),
     _TrackAction.favorite => library.setFavorite(track.id, favorite: true),
     _TrackAction.unfavorite => library.setFavorite(track.id, favorite: false),
-    _TrackAction.addToPlaylist => _addToPlaylist(context, library, track),
+    _TrackAction.addToPlaylist => addTracksToPlaylist(context, ref, [track]),
     _TrackAction.removeFromPlaylist => library.removeFromPlaylist(
       playlistEntry!.$1,
       playlistEntry.$2,
@@ -94,14 +95,19 @@ Future<Result<void>?> _queue(Future<void> Function() edit) async {
 
 const _newPlaylist = '';
 
-Future<Result<void>?> _addToPlaylist(
+/// Asks which playlist (or a new one) and adds [tracks] to it. Online
+/// tracks are stored as references, like favorites. Null when cancelled.
+Future<Result<void>?> addTracksToPlaylist(
   BuildContext context,
-  LibraryRepository library,
-  Track track,
-) async {
+  WidgetRef ref,
+  List<Track> tracks, {
+  String title = AuraStrings.addToPlaylist,
+}) async {
+  final library = ref.read(libraryRepositoryProvider);
+  final ids = [for (final t in tracks) t.id];
   final choice = await showActionSheet<String>(
     context,
-    title: AuraStrings.addToPlaylist,
+    title: title,
     actions: [
       const SheetAction(AuraStrings.newPlaylist, _newPlaylist),
       for (final playlist in library.current.playlists)
@@ -109,9 +115,10 @@ Future<Result<void>?> _addToPlaylist(
     ],
   );
   if (choice == null || !context.mounted) return null;
+  ref.read(onlineTrackCacheProvider.notifier).remember(tracks);
 
   if (choice != _newPlaylist) {
-    return library.addToPlaylist(PlaylistId(choice), [track.id]);
+    return library.addToPlaylist(PlaylistId(choice), ids);
   }
   final name = await askPlaylistName(
     context,
@@ -121,7 +128,7 @@ Future<Result<void>?> _addToPlaylist(
   if (name == null) return null;
   final created = await library.createPlaylist(name);
   return switch (created) {
-    Ok(:final value) => library.addToPlaylist(value.id, [track.id]),
+    Ok(:final value) => library.addToPlaylist(value.id, ids),
     Err(:final failure) => Err(failure),
   };
 }

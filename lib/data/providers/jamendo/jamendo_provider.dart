@@ -5,7 +5,9 @@ import 'package:music_app/data/network/json_http_client.dart';
 import 'package:music_app/data/providers/jamendo/jamendo_track_mapper.dart';
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track.dart';
+import 'package:music_app/domain/music/track_source.dart';
 import 'package:music_app/domain/providers/music_provider.dart';
+import 'package:music_app/domain/providers/radio_mix.dart';
 
 /// Jamendo through its official API v3 (https://developer.jamendo.com/v3.0).
 ///
@@ -21,6 +23,8 @@ final class JamendoProvider
         TrackDetailsProvider,
         BatchTrackDetailsProvider,
         StreamingProvider,
+        ArtistProvider,
+        RadioProvider,
         AttributionRequiredProvider {
   JamendoProvider({
     required this._http,
@@ -156,6 +160,94 @@ final class JamendoProvider
     }
   }
 
+  @override
+  Future<Result<OnlineArtist>> artist(
+    ExternalArtistId id, {
+    Cancellation? cancellation,
+  }) async {
+    if (!JamendoTrackMapper.isValidId(id.value)) {
+      return const Err(NotFoundFailure(debugMessage: 'Invalid Jamendo artist'));
+    }
+    final response = await _results(
+      {'id': id.value},
+      cancellation,
+      endpoint: 'artists',
+    );
+    return switch (response) {
+      Err(:final failure) => Err(failure),
+      Ok(:final value) => switch (JamendoTrackMapper.artistFromJson(
+        value.firstOrNull,
+      )) {
+        final artist? => Ok(artist),
+        null => const Err(
+          NotFoundFailure(debugMessage: 'Jamendo artist not found'),
+        ),
+      },
+    };
+  }
+
+  /// The artist's tracks, most popular of all time first.
+  @override
+  Future<Result<ProviderPage<Track>>> artistTracks(
+    ExternalArtistId id, {
+    PageRequest page = const PageRequest(),
+    Cancellation? cancellation,
+  }) async {
+    if (!JamendoTrackMapper.isValidId(id.value)) {
+      return const Err(NotFoundFailure(debugMessage: 'Invalid Jamendo artist'));
+    }
+    return _page(
+      {'artist_id': id.value, 'order': 'popularity_total'},
+      page,
+      cancellation,
+    );
+  }
+
+  /// Popular tracks with the seed's genre tags, mixed with a few more by
+  /// the same artist. (The API's "similar" endpoint answered empty in
+  /// October 2026.)
+  @override
+  Future<Result<List<Track>>> radioFor(
+    Track seed, {
+    int limit = 30,
+    Cancellation? cancellation,
+  }) async {
+    final source = seed.sources
+        .whereType<ProviderTrackSource>()
+        .where((s) => s.providerId == id)
+        .firstOrNull;
+    final genres = source?.genres ?? const <String>[];
+    final artistId = source?.artistExternalId;
+    final results = await Future.wait([
+      _page(
+        {
+          if (genres.isNotEmpty) 'fuzzytags': genres.take(3).join(' '),
+          'order': 'popularity_week',
+        },
+        PageRequest(limit: limit),
+        cancellation,
+      ),
+      if (artistId != null)
+        artistTracks(
+          artistId,
+          page: const PageRequest(limit: 6),
+          cancellation: cancellation,
+        ),
+    ]);
+    final failure = results
+        .map((r) => r is Err<ProviderPage<Track>> ? r.failure : null)
+        .nonNulls
+        .firstOrNull;
+    final lists = [
+      for (final result in results)
+        if (result case Ok(:final value)) value.items,
+    ];
+    if (lists.isEmpty) {
+      return Err(failure ?? const UnexpectedFailure(debugMessage: 'No radio'));
+    }
+    return Ok(mixForRadio(lists, seed: seed, limit: limit));
+  }
+
   Future<Result<ProviderPage<Track>>> _page(
     Map<String, String> query,
     PageRequest page,
@@ -180,19 +272,24 @@ final class JamendoProvider
     };
   }
 
-  /// The `results` of `/tracks/` for [query], asked again when empty (see
-  /// [emptyRetries]).
+  /// The `results` of `/tracks/` (or another [endpoint]) for [query],
+  /// asked again when empty (see [emptyRetries]). Track answers include
+  /// `musicinfo` for genres.
   Future<Result<List<Object?>>> _results(
     Map<String, String> query,
-    Cancellation? cancellation,
-  ) async {
+    Cancellation? cancellation, {
+    String endpoint = 'tracks',
+  }) async {
     final uri = _apiBase.replace(
-      pathSegments: [..._apiBase.pathSegments, 'tracks', ''],
+      pathSegments: [..._apiBase.pathSegments, endpoint, ''],
       queryParameters: {
         ...query,
         'client_id': clientId,
         'format': 'json',
-        'audioformat': 'mp32',
+        if (endpoint == 'tracks') ...{
+          'audioformat': 'mp32',
+          'include': 'musicinfo',
+        },
       },
     );
     for (var attempt = 0; ; attempt++) {

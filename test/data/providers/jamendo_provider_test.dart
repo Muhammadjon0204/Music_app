@@ -154,6 +154,7 @@ void main() {
       'client_id': 'test-client',
       'format': 'json',
       'audioformat': 'mp32',
+      'include': 'musicinfo',
     });
     expect(items(result), hasLength(2));
     expect((result as Ok<ProviderPage<Track>>).value.nextOffset, 22);

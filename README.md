@@ -5,7 +5,13 @@
 Premium music player built with Flutter. iOS is the primary target; the
 codebase is kept portable so Android can be supported later.
 
-> Status: **Phase 20 — Faster playback and a new Home.** Switching tracks
+> Status: **Phase 21 — Artists, playlists, radio, sharing.** Artist pages
+> from the catalogs (banner, portrait, followers, top tracks, a link to the
+> catalog page) open from any track menu, Now Playing and Home. Playlists
+> take online tracks too, and the queue can be saved as a playlist. "Radio"
+> plays tracks like a chosen one and keeps adding more. Tracks can be
+> shared with the iOS share sheet.
+> **Phase 20 — Faster playback and a new Home.** Switching tracks
 > silences the old one at once and always loads the new one (a web
 > playback bug replayed the previous track); Jamendo streams come from the
 > search answer, the next track is prepared in advance, and searches are

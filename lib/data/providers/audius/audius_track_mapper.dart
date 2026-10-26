@@ -1,6 +1,7 @@
 import 'package:music_app/domain/music/ids.dart';
 import 'package:music_app/domain/music/track.dart';
 import 'package:music_app/domain/music/track_source.dart';
+import 'package:music_app/domain/providers/music_provider.dart';
 
 /// Converts Audius API track JSON into AURA's [Track].
 ///
@@ -34,6 +35,11 @@ abstract final class AudiusTrackMapper {
       availability: availabilityOf(json),
       originalUrl: _pageUrl(json['permalink']),
       license: _text(json['license']),
+      artistExternalId: switch (_text(userMap['id'])) {
+        final id? when isValidId(id) => ExternalArtistId(id),
+        _ => null,
+      },
+      genres: [?_text(json['genre'])],
     );
     return Track(
       id: source.trackId,
@@ -106,12 +112,39 @@ abstract final class AudiusTrackMapper {
     return uri != null && uri.host == 'audius.co' ? uri : null;
   }
 
+  /// An Audius user (`/v1/users/{id}`) as an artist; null without an ID
+  /// and a name.
+  static OnlineArtist? artistFromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    final id = _text(json['id']);
+    final name = _text(json['name']) ?? _text(json['handle']);
+    if (id == null || !isValidId(id) || name == null) return null;
+    final handle = _text(json['handle']);
+    final followers = json['follower_count'];
+    final tracks = json['track_count'];
+    return OnlineArtist(
+      providerId: providerId,
+      id: ExternalArtistId(id),
+      name: name,
+      imageUri: _artwork(json['profile_picture']),
+      coverUri: _artwork(json['cover_photo'], sizes: const ['640x', '2000x']),
+      followerCount: followers is int && followers >= 0 ? followers : null,
+      trackCount: tracks is int && tracks >= 0 ? tracks : null,
+      bio: _text(json['bio']),
+      pageUrl: handle != null && RegExp(r'^[A-Za-z0-9_.]+$').hasMatch(handle)
+          ? Uri.parse('$_site/$handle')
+          : null,
+    );
+  }
+
   /// The 480×480 cover: sharp in lists and on the lock screen, small enough
   /// for mobile data. HTTPS only.
-  static Uri? _artwork(Object? artwork) {
+  static Uri? _artwork(
+    Object? artwork, {
+    List<String> sizes = const ['480x480', '1000x1000', '150x150'],
+  }) {
     if (artwork is! Map<String, Object?>) return null;
-    final url =
-        artwork['480x480'] ?? artwork['1000x1000'] ?? artwork['150x150'];
+    final url = sizes.map((size) => artwork[size]).nonNulls.firstOrNull;
     if (url is! String) return null;
     final uri = Uri.tryParse(url);
     return uri != null && uri.isScheme('https') && uri.hasAuthority

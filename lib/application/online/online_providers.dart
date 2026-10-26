@@ -20,6 +20,9 @@ final providerRegistryProvider = Provider<ProviderRegistry>(
 /// Null where links cannot be opened (tests).
 final externalLinkOpenerProvider = Provider<ExternalLinkOpener?>((ref) => null);
 
+/// The system share sheet; null where sharing is not available (tests).
+final linkSharerProvider = Provider<LinkSharer?>((ref) => null);
+
 /// Popular tracks of every provider that has a list, interleaved into one
 /// list for Home, or null when no provider offers one. Loaded once per
 /// session (the providers' terms allow only session caching). A provider

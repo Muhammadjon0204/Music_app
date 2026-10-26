@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app/application/library/library_providers.dart';
+import 'package:music_app/application/online/online_artist_providers.dart';
 import 'package:music_app/application/online/online_providers.dart';
 import 'package:music_app/application/playback/playback_providers.dart';
+import 'package:music_app/application/playback/radio.dart';
 import 'package:music_app/application/playback/sleep_timer.dart';
 import 'package:music_app/core/error/result.dart';
 import 'package:music_app/domain/music/ids.dart';
@@ -271,7 +273,15 @@ class _TopBar extends ConsumerWidget {
             semanticLabel: AuraStrings.closePlayer,
             onPressed: onClose,
           ),
-          Expanded(child: Center(child: isSilent ? const _SilentChip() : null)),
+          Expanded(
+            child: Center(
+              child: isSilent
+                  ? const _SilentChip()
+                  : ref.watch(radioProvider) != null
+                  ? const _RadioChip()
+                  : null,
+            ),
+          ),
           if (showSleepTimer)
             AuraIconButton(
               icon: sleep.isActive
@@ -287,6 +297,46 @@ class _TopBar extends ConsumerWidget {
             )
           else
             const SizedBox(width: AuraSizes.minTouchTarget),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Радио" while a radio plays: the queue keeps growing by itself.
+class _RadioChip extends StatelessWidget {
+  const _RadioChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.auraColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AuraSpacing.sm,
+        vertical: AuraSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: colors.background.withValues(
+          alpha: nowPlayingLabelBackdropAlpha,
+        ),
+        borderRadius: BorderRadius.circular(AuraRadii.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            CupertinoIcons.antenna_radiowaves_left_right,
+            size: AuraSizes.iconSm,
+            color: colors.accentText,
+          ),
+          const SizedBox(width: AuraSpacing.xs),
+          Text(
+            AuraStrings.radio,
+            style: context.auraText.caption.copyWith(
+              color: colors.accentText,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -621,12 +671,7 @@ class _Details extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AuraSpacing.xxs),
-                    Text(
-                      track.artistName ?? AuraStrings.unknownArtist,
-                      style: text.subhead,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    _ArtistName(track: track),
                   ],
                 ),
               ),
@@ -677,6 +722,60 @@ class _Details extends StatelessWidget {
         const SizedBox(height: AuraSpacing.lg),
         _BottomRow(snapshot: snapshot),
       ],
+    );
+  }
+}
+
+/// The artist's name; for an online track with an artist page it opens
+/// that page (in the Home tab, closing the player).
+class _ArtistName extends ConsumerWidget {
+  const _ArtistName({required this.track});
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = track.artistName ?? AuraStrings.unknownArtist;
+    final artist = onlineArtistOf(ref.watch(providerRegistryProvider), track);
+    final label = Text(
+      name,
+      style: context.auraText.subhead.copyWith(
+        color: artist == null ? null : context.auraColors.textPrimary,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    if (artist == null) return label;
+    return AuraPressable(
+      onPressed: () => context.go(
+        AppRoutes.onlineArtist(
+          AppRoutes.home,
+          artist.$1.value,
+          artist.$2.value,
+        ),
+      ),
+      semanticLabel: AuraStrings.openArtist(name),
+      feedback: AuraPressFeedback.opacity,
+      // The label says it all; the name inside is not read twice.
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AuraSizes.minTouchTarget,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(child: label),
+              const SizedBox(width: AuraSpacing.xxs),
+              Icon(
+                CupertinoIcons.chevron_right,
+                size: 12,
+                color: context.auraColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
